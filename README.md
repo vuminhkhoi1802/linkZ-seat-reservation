@@ -346,6 +346,15 @@ Failure behavior:
 - Cookie expiry is 90 days.
 - Cookies are marked `Secure` when `COOKIE_SECURE=true`.
 
+### Sessions vs. JWT (Architectural Choice)
+
+The system uses opaque session tokens stored in `HttpOnly` cookies instead of returning JWTs in the response body. This is a deliberate "Security-First" decision based on:
+
+1.  **XSS Mitigation:** `HttpOnly` cookies are inaccessible to JavaScript. If the application has an XSS vulnerability, an attacker cannot programmatically steal the session token from `localStorage` or `sessionStorage`.
+2.  **Instant Revocation:** JWTs are stateless and remain valid until expiration. By using database-backed sessions, we can instantly invalidate a session (e.g., on logout or security breach) by deleting the session row.
+3.  **Built-in CSRF Protection:** Using `SameSite=Lax` cookies leverages modern browser protections to significantly reduce the risk of Cross-Site Request Forgery without requiring manual header management on the frontend.
+4.  **Minimal Payload:** Opaque tokens are small, constant-length strings, whereas JWTs grow in size with every claim added (roles, permissions), increasing the overhead of every HTTP request.
+
 ### Request Protection
 
 - **SQL Injection Mitigation:** Raw SQL has been eliminated from the repository layer in favor of TypeORM parameterized queries.
