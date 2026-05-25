@@ -11,6 +11,6 @@ export class ReservationsController {
 
   @Get('me')
   me(@CurrentUser() user: AuthPrincipal) {
-    return this.reservations.getMyReservation(user.userId);
+    return this.reservations.listMyReservations(user.userId);
   }
 }

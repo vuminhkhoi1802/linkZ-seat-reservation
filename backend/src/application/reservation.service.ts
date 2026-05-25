@@ -70,7 +70,7 @@ export class ReservationService {
     });
   }
 
-  async getMyReservation(userId: string): Promise<ReservationView | null> {
+  async listMyReservations(userId: string): Promise<ReservationView[]> {
     const result = await this.db.query<ReservationRow>(
       `
         SELECT r.id, r.seat_id, s.label AS seat_label, r.status, r.confirmed_at
@@ -78,11 +78,10 @@ export class ReservationService {
         JOIN seats s ON s.id = r.seat_id
         WHERE r.user_id = $1 AND r.status = 'CONFIRMED'
         ORDER BY r.confirmed_at DESC
-        LIMIT 1
       `,
       [userId],
     );
-    return result.rows[0] ? this.mapReservation(result.rows[0]) : null;
+    return result.rows.map((row) => this.mapReservation(row));
   }
 
   private mapReservation(row: ReservationRow): ReservationView {

@@ -513,7 +513,7 @@ This endpoint is idempotent for the same payment attempt.
 GET /api/reservations/me
 ```
 
-Returns the authenticated user's latest confirmed reservation, or `null`.
+Returns the authenticated user's confirmed reservations, newest first.
 
 ## Example Curl Flow
 

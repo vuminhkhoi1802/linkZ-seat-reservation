@@ -148,9 +148,17 @@ label {
   background: #3e4c59;
 }
 
+.reservation-list {
+  display: grid;
+  gap: 12px;
+}
+
 .confirmation {
+  border: 1px solid #d9e2e8;
+  border-radius: 6px;
   display: grid;
   gap: 8px;
+  padding: 12px;
 }
 
 .message {

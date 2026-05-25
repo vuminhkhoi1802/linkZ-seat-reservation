@@ -32,7 +32,7 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [seats, setSeats] = useState<Seat[]>([]);
-  const [reservation, setReservation] = useState<Reservation | null>(null);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [selectedSeatId, setSelectedSeatId] = useState<string>('');
   const [mode, setMode] = useState<'login' | 'register'>('register');
   const [email, setEmail] = useState('reviewer@example.com');
@@ -53,7 +53,9 @@ function App() {
     setSeats(seatData);
     setUser(me.user);
     if (me.user) {
-      setReservation(await api<Reservation | null>('/reservations/me'));
+      setReservations(await api<Reservation[]>('/reservations/me'));
+    } else {
+      setReservations([]);
     }
   }
 
@@ -92,7 +94,7 @@ function App() {
       const confirmed = await api<Reservation>(`/payments/${payment.id}/complete`, {
         method: 'POST',
       });
-      setReservation(confirmed);
+      setReservations((current) => [confirmed, ...current.filter((item) => item.id !== confirmed.id)]);
       setMessage(`${confirmed.seatLabel} reserved successfully`);
       await refresh();
     } catch (error) {
@@ -106,7 +108,7 @@ function App() {
   async function logout() {
     await api<void>('/auth/logout', { method: 'POST' });
     setUser(null);
-    setReservation(null);
+    setReservations([]);
     setMessage('Signed out');
     await refresh();
   }
@@ -173,15 +175,19 @@ function App() {
             </button>
           </div>
           <div className="panel">
-            <h2>Your reservation</h2>
-            {reservation ? (
-              <div className="confirmation">
-                <strong>{reservation.seatLabel}</strong>
-                <span>{reservation.status}</span>
-                <small>{reservation.confirmedAt ? new Date(reservation.confirmedAt).toLocaleString() : ''}</small>
+            <h2>Your reserved seats</h2>
+            {reservations.length > 0 ? (
+              <div className="reservation-list">
+                {reservations.map((reservation) => (
+                  <div className="confirmation" key={reservation.id}>
+                    <strong>{reservation.seatLabel}</strong>
+                    <span>{reservation.status}</span>
+                    <small>{reservation.confirmedAt ? new Date(reservation.confirmedAt).toLocaleString() : ''}</small>
+                  </div>
+                ))}
               </div>
             ) : (
-              <p>No confirmed reservation yet.</p>
+              <p>No confirmed seats yet.</p>
             )}
           </div>
         </section>
