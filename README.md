@@ -109,6 +109,7 @@ Frontend:
 ```bash
 cd frontend
 npm install
+npm test
 npm run build
 ```
 
@@ -595,6 +596,7 @@ npm audit --omit=dev
 ```bash
 cd frontend
 npm install
+npm test
 npm run build
 npm audit --omit=dev
 ```

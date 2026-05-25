@@ -29,7 +29,7 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-function App() {
+export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [seats, setSeats] = useState<Seat[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -200,4 +200,8 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')!).render(<App />);
+const rootElement = document.getElementById('root');
+
+if (rootElement) {
+  createRoot(rootElement).render(<App />);
+}
