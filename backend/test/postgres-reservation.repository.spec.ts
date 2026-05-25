@@ -2,41 +2,51 @@ import { PostgresReservationRepository } from '../src/infrastructure/repositorie
 
 describe('PostgresReservationRepository', () => {
   let repo: PostgresReservationRepository;
-  let db: any;
+  let reservationRepo: any;
 
   beforeEach(() => {
-    db = { query: jest.fn() };
-    repo = new PostgresReservationRepository(db);
+    reservationRepo = {
+      find: jest.fn(),
+      manager: {
+        findOne: jest.fn(),
+        count: jest.fn(),
+        create: jest.fn(),
+        save: jest.fn(),
+      },
+    };
+    repo = new PostgresReservationRepository(reservationRepo);
   });
 
   it('findByPaymentAttemptId() maps row to ReservationView', async () => {
-    const client = { query: jest.fn().mockResolvedValue({ rows: [{ id: 'r1', confirmed_at: new Date() }] }) };
-    const result = await repo.findByPaymentAttemptId(client as any, 'p1');
+    reservationRepo.manager.findOne.mockResolvedValue({ id: 'r1', confirmedAt: new Date(), seat: { label: 'A' } });
+    const result = await repo.findByPaymentAttemptId(reservationRepo.manager, 'p1');
     expect(result?.id).toBe('r1');
+    expect(result?.seatLabel).toBe('A');
 
-    client.query.mockResolvedValue({ rows: [] });
-    expect(await repo.findByPaymentAttemptId(client as any, 'p1')).toBeNull();
+    reservationRepo.manager.findOne.mockResolvedValue(null);
+    expect(await repo.findByPaymentAttemptId(reservationRepo.manager, 'p1')).toBeNull();
   });
 
   it('isSeatConfirmed() returns boolean', async () => {
-    const client = { query: jest.fn().mockResolvedValue({ rowCount: 1 }) };
-    expect(await repo.isSeatConfirmed(client as any, 's1')).toBe(true);
+    reservationRepo.manager.count.mockResolvedValue(1);
+    expect(await repo.isSeatConfirmed(reservationRepo.manager, 's1')).toBe(true);
 
-    client.query.mockResolvedValue({ rowCount: 0 });
-    expect(await repo.isSeatConfirmed(client as any, 's1')).toBe(false);
-
-    client.query.mockResolvedValue({ rowCount: undefined });
-    expect(await repo.isSeatConfirmed(client as any, 's1')).toBe(false);
+    reservationRepo.manager.count.mockResolvedValue(0);
+    expect(await repo.isSeatConfirmed(reservationRepo.manager, 's1')).toBe(false);
   });
 
   it('createConfirmed() returns ReservationView', async () => {
-    const client = { query: jest.fn().mockResolvedValue({ rows: [{ id: 'r1', confirmed_at: new Date() }] }) };
-    const result = await repo.createConfirmed(client as any, 'u1', 's1', 'p1');
+    reservationRepo.manager.findOne.mockResolvedValue({ label: 'A' });
+    reservationRepo.manager.create.mockReturnValue({ id: 'r1', seatId: 's1', status: 'CONFIRMED', confirmedAt: new Date() });
+    reservationRepo.manager.save.mockResolvedValue({ id: 'r1', seatId: 's1', status: 'CONFIRMED', confirmedAt: new Date() });
+    
+    const result = await repo.createConfirmed(reservationRepo.manager, 'u1', 's1', 'p1');
     expect(result.id).toBe('r1');
+    expect(result.seatLabel).toBe('A');
   });
 
   it('listByUserId() returns list', async () => {
-    db.query.mockResolvedValue({ rows: [{ id: 'r1', confirmed_at: new Date() }] });
+    reservationRepo.find.mockResolvedValue([{ id: 'r1', confirmedAt: new Date(), seat: { label: 'A' } }]);
     const result = await repo.listByUserId('u1');
     expect(result.length).toBe(1);
     expect(result[0].id).toBe('r1');

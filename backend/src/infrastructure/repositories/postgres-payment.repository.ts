@@ -1,57 +1,63 @@
 import { Injectable } from '@nestjs/common';
-import { IPaymentRepository } from '../../domain/repositories';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, EntityManager } from 'typeorm';
+import { IPaymentRepository, TransactionalManager } from '../../domain/repositories';
 import { PaymentAttemptView } from '../../domain/types';
-import { DatabaseService } from '../db/database.service';
-import { PoolClient } from 'pg';
+import { PaymentAttempt } from '../db/entities/payment-attempt.entity';
 
 @Injectable()
 export class PostgresPaymentRepository implements IPaymentRepository {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    @InjectRepository(PaymentAttempt)
+    private readonly paymentRepo: Repository<PaymentAttempt>,
+  ) {}
 
   async create(userId: string, seatId: string): Promise<PaymentAttemptView> {
-    const result = await this.db.query<{ id: string; seat_id: string; status: 'PENDING' }>(
-      `
-        INSERT INTO payment_attempts(user_id, seat_id, status)
-        SELECT $1, id, 'PENDING'
-        FROM seats
-        WHERE id = $2
-        RETURNING id, seat_id, status
-      `,
-      [userId, seatId],
-    );
-    const row = result.rows[0];
-    if (!row) {
-      throw new Error('Seat not found');
-    }
-    return { id: row.id, seatId: row.seat_id, status: row.status };
+    const attempt = this.paymentRepo.create({
+      userId,
+      seatId,
+      status: 'PENDING',
+    });
+    const saved = await this.paymentRepo.save(attempt);
+    return { id: saved.id, seatId: saved.seatId, status: saved.status };
   }
 
-  async findByIdForUpdate(client: PoolClient, id: string): Promise<{
+  async findByIdForUpdate(manager: TransactionalManager, id: string): Promise<{
     id: string;
     user_id: string;
     seat_id: string;
     status: string;
   } | null> {
-    const result = await client.query<{
-      id: string;
-      user_id: string;
-      seat_id: string;
-      status: string;
-    }>('SELECT id, user_id, seat_id, status FROM payment_attempts WHERE id = $1 FOR UPDATE', [id]);
-    return result.rows[0] ?? null;
+    const entityManager: EntityManager = manager || this.paymentRepo.manager;
+    const attempt = await entityManager
+      .createQueryBuilder(PaymentAttempt, 'attempt')
+      .setLock('pessimistic_write')
+      .where('attempt.id = :id', { id })
+      .getOne();
+
+    if (!attempt) return null;
+
+    return {
+      id: attempt.id,
+      user_id: attempt.userId,
+      seat_id: attempt.seatId,
+      status: attempt.status,
+    };
   }
 
-  async markAsCompleted(client: PoolClient, id: string): Promise<void> {
-    await client.query(
-      "UPDATE payment_attempts SET status = 'COMPLETED', completed_at = now() WHERE id = $1",
-      [id],
-    );
+  async markAsCompleted(manager: TransactionalManager, id: string): Promise<void> {
+    const entityManager: EntityManager = manager || this.paymentRepo.manager;
+    await entityManager.update(PaymentAttempt, id, {
+      status: 'COMPLETED',
+      completedAt: new Date(),
+    });
   }
 
-  async markAsFailed(client: PoolClient, id: string): Promise<void> {
-    await client.query(
-      "UPDATE payment_attempts SET status = 'FAILED', completed_at = now() WHERE id = $1",
-      [id],
-    );
+  async markAsFailed(manager: TransactionalManager, id: string): Promise<void> {
+    const entityManager: EntityManager = manager || this.paymentRepo.manager;
+    await entityManager.update(PaymentAttempt, id, {
+      status: 'FAILED',
+      completedAt: new Date(),
+    });
   }
 }

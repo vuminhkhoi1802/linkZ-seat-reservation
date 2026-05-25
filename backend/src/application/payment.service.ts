@@ -15,7 +15,7 @@ export class PaymentService {
 
   async createPaymentAttempt(userId: string, seatId: string): Promise<PaymentAttemptView> {
     // We can use a simple query for the check, but let's use the repo
-    const isReserved = await this.reservationRepo.isSeatConfirmed(this.db as any, seatId);
+    const isReserved = await this.reservationRepo.isSeatConfirmed(undefined, seatId);
     if (isReserved) {
       throw new BadRequestException('Seat is already reserved');
     }

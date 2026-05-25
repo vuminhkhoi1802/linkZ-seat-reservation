@@ -1,37 +1,28 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { DataSource, EntityManager, QueryRunner } from 'typeorm';
 
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {
   private readonly logger = new Logger(DatabaseService.name);
-  private readonly pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-  });
 
-  query<T extends QueryResultRow = QueryResultRow>(
-    text: string,
-    params: unknown[] = [],
-  ): Promise<QueryResult<T>> {
-    return this.pool.query<T>(text, params);
+  constructor(private readonly dataSource: DataSource) {}
+
+  async query<T = any>(text: string, params: any[] = []): Promise<{ rows: T[]; rowCount: number | null }> {
+    const result = await this.dataSource.query(text, params);
+    return {
+      rows: Array.isArray(result) ? result : [result],
+      rowCount: Array.isArray(result) ? result.length : (result ? 1 : 0),
+    };
   }
 
-  async transaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
-      const result = await work(client);
-      await client.query('COMMIT');
-      return result;
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+  async transaction<T>(work: (manager: EntityManager) => Promise<T>): Promise<T> {
+    return this.dataSource.transaction(work);
   }
 
   async migrateAndSeed(): Promise<void> {
-    await this.query(`
+    // We keep the manual migration logic for now as requested to ensure everything works
+    // But we use the dataSource to execute it
+    await this.dataSource.query(`
       CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
       CREATE TABLE IF NOT EXISTS users (
@@ -98,7 +89,7 @@ export class DatabaseService implements OnModuleDestroy {
         WHERE status = 'CONFIRMED';
     `);
 
-    await this.query(`
+    await this.dataSource.query(`
       INSERT INTO seats(label)
       VALUES ('Seat A'), ('Seat B'), ('Seat C')
       ON CONFLICT (label) DO NOTHING;
@@ -107,6 +98,6 @@ export class DatabaseService implements OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    await this.pool.end();
+    // TypeOrmModule handles dataSource closing
   }
 }

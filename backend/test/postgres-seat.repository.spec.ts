@@ -2,33 +2,32 @@ import { PostgresSeatRepository } from '../src/infrastructure/repositories/postg
 
 describe('PostgresSeatRepository', () => {
   let repo: PostgresSeatRepository;
-  let db: any;
+  let seatRepo: any;
 
   beforeEach(() => {
-    db = { query: jest.fn() };
-    repo = new PostgresSeatRepository(db);
+    seatRepo = {
+      find: jest.fn(),
+      count: jest.fn(),
+      manager: {},
+    };
+    repo = new PostgresSeatRepository(seatRepo);
   });
 
   it('findAll() maps rows to SeatView', async () => {
-    db.query.mockResolvedValue({
-      rows: [{ id: '1', label: 'A', is_reserved: true }],
-    });
+    seatRepo.find.mockResolvedValue([
+      { id: '1', label: 'A', reservations: [{ status: 'CONFIRMED' }] },
+    ]);
     const result = await repo.findAll();
     expect(result[0]).toEqual({ id: '1', label: 'A', isReserved: true });
   });
 
-  it('existsById() returns true if rowCount > 0', async () => {
-    db.query.mockResolvedValue({ rowCount: 1 });
+  it('existsById() returns true if count > 0', async () => {
+    seatRepo.count.mockResolvedValue(1);
     expect(await repo.existsById('1')).toBe(true);
   });
 
-  it('existsById() returns false if rowCount is 0', async () => {
-    db.query.mockResolvedValue({ rowCount: 0 });
-    expect(await repo.existsById('1')).toBe(false);
-  });
-
-  it('existsById() handles null rowCount', async () => {
-    db.query.mockResolvedValue({ rowCount: null });
+  it('existsById() returns false if count is 0', async () => {
+    seatRepo.count.mockResolvedValue(0);
     expect(await repo.existsById('1')).toBe(false);
   });
 });

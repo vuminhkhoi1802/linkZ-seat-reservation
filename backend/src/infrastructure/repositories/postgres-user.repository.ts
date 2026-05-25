@@ -1,35 +1,44 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { IUserRepository } from '../../domain/repositories';
-import { DatabaseService } from '../db/database.service';
+import { User } from '../db/entities/user.entity';
+import { AuthIdentity } from '../db/entities/auth-identity.entity';
+import { LocalCredential } from '../db/entities/local-credential.entity';
 
 @Injectable()
 export class PostgresUserRepository implements IUserRepository {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+  ) {}
 
   async findByEmail(email: string): Promise<{ id: string; email: string; display_name: string; password_hash: string } | null> {
-    const result = await this.db.query<{
-      id: string;
-      email: string;
-      display_name: string;
-      password_hash: string;
-    }>(
-      `
-        SELECT u.id, u.email, u.display_name, lc.password_hash
-        FROM users u
-        JOIN local_credentials lc ON lc.user_id = u.id
-        WHERE u.email = $1
-      `,
-      [email],
-    );
-    return result.rows[0] ?? null;
+    const user = await this.userRepo.findOne({
+      where: { email },
+      relations: { localCredential: true },
+    });
+
+    if (!user) return null;
+
+    return {
+      id: user.id,
+      email: user.email,
+      display_name: user.displayName,
+      password_hash: user.localCredential?.passwordHash ?? '',
+    };
   }
 
   async findById(id: string): Promise<{ id: string; email: string; display_name: string } | null> {
-    const result = await this.db.query<{ id: string; email: string; display_name: string }>(
-      'SELECT id, email, display_name FROM users WHERE id = $1',
-      [id],
-    );
-    return result.rows[0] ?? null;
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) return null;
+
+    return {
+      id: user.id,
+      email: user.email,
+      display_name: user.displayName,
+    };
   }
 
   async createWithCredentials(
@@ -37,28 +46,32 @@ export class PostgresUserRepository implements IUserRepository {
     displayName: string,
     passwordHash: string,
   ): Promise<{ id: string; email: string; display_name: string }> {
-    return this.db.transaction(async (client) => {
-      const userResult = await client.query<{ id: string; email: string; display_name: string }>(
-        `
-          INSERT INTO users(email, display_name)
-          VALUES ($1, $2)
-          RETURNING id, email, display_name
-        `,
-        [email, displayName],
-      );
-      const createdUser = userResult.rows[0];
-      await client.query(
-        `
-          INSERT INTO auth_identities(user_id, provider, provider_user_id, email)
-          VALUES ($1, 'local', $2, $2)
-        `,
-        [createdUser.id, createdUser.email],
-      );
-      await client.query('INSERT INTO local_credentials(user_id, password_hash) VALUES ($1, $2)', [
-        createdUser.id,
+    return this.dataSource.transaction(async (manager) => {
+      const user = manager.create(User, {
+        email,
+        displayName,
+      });
+      const savedUser = await manager.save(User, user);
+
+      const identity = manager.create(AuthIdentity, {
+        userId: savedUser.id,
+        provider: 'local',
+        providerUserId: email,
+        email: email,
+      });
+      await manager.save(AuthIdentity, identity);
+
+      const credentials = manager.create(LocalCredential, {
+        userId: savedUser.id,
         passwordHash,
-      ]);
-      return createdUser;
+      });
+      await manager.save(LocalCredential, credentials);
+
+      return {
+        id: savedUser.id,
+        email: savedUser.email,
+        display_name: savedUser.displayName,
+      };
     });
   }
 }

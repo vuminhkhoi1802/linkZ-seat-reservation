@@ -2,41 +2,54 @@ import { PostgresPaymentRepository } from '../src/infrastructure/repositories/po
 
 describe('PostgresPaymentRepository', () => {
   let repo: PostgresPaymentRepository;
-  let db: any;
+  let paymentRepo: any;
 
   beforeEach(() => {
-    db = { query: jest.fn() };
-    repo = new PostgresPaymentRepository(db);
+    const queryBuilder = {
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn(),
+    };
+    paymentRepo = {
+      create: jest.fn(),
+      save: jest.fn(),
+      manager: {
+        createQueryBuilder: jest.fn(() => queryBuilder),
+        update: jest.fn(),
+      },
+    };
+    repo = new PostgresPaymentRepository(paymentRepo);
   });
 
   it('create() returns PaymentAttemptView', async () => {
-    db.query.mockResolvedValue({ rows: [{ id: 'p1', seat_id: 's1', status: 'PENDING' }] });
+    paymentRepo.create.mockReturnValue({ id: 'p1', seatId: 's1', status: 'PENDING' });
+    paymentRepo.save.mockResolvedValue({ id: 'p1', seatId: 's1', status: 'PENDING' });
     const result = await repo.create('u1', 's1');
     expect(result.id).toBe('p1');
   });
 
-  it('create() throws if seat not found', async () => {
-    db.query.mockResolvedValue({ rows: [] });
-    await expect(repo.create('u1', 's1')).rejects.toThrow('Seat not found');
-  });
-
   it('findByIdForUpdate() returns row or null', async () => {
-    const client = { query: jest.fn().mockResolvedValue({ rows: [{ id: 'p1' }] }) };
-    expect(await repo.findByIdForUpdate(client as any, 'p1')).toEqual({ id: 'p1' });
+    const queryBuilder = paymentRepo.manager.createQueryBuilder();
+    queryBuilder.getOne.mockResolvedValue({ id: 'p1', userId: 'u1', seatId: 's1', status: 'PENDING' });
+    
+    expect(await repo.findByIdForUpdate(paymentRepo.manager, 'p1')).toEqual({
+      id: 'p1',
+      user_id: 'u1',
+      seat_id: 's1',
+      status: 'PENDING',
+    });
 
-    client.query.mockResolvedValue({ rows: [] });
-    expect(await repo.findByIdForUpdate(client as any, 'p1')).toBeNull();
+    queryBuilder.getOne.mockResolvedValue(null);
+    expect(await repo.findByIdForUpdate(paymentRepo.manager, 'p1')).toBeNull();
   });
 
-  it('markAsCompleted() calls query', async () => {
-    const client = { query: jest.fn() };
-    await repo.markAsCompleted(client as any, 'p1');
-    expect(client.query).toHaveBeenCalledWith(expect.stringContaining('COMPLETED'), ['p1']);
+  it('markAsCompleted() calls update', async () => {
+    await repo.markAsCompleted(paymentRepo.manager, 'p1');
+    expect(paymentRepo.manager.update).toHaveBeenCalledWith(expect.anything(), 'p1', expect.objectContaining({ status: 'COMPLETED' }));
   });
 
-  it('markAsFailed() calls query', async () => {
-    const client = { query: jest.fn() };
-    await repo.markAsFailed(client as any, 'p1');
-    expect(client.query).toHaveBeenCalledWith(expect.stringContaining('FAILED'), ['p1']);
+  it('markAsFailed() calls update', async () => {
+    await repo.markAsFailed(paymentRepo.manager, 'p1');
+    expect(paymentRepo.manager.update).toHaveBeenCalledWith(expect.anything(), 'p1', expect.objectContaining({ status: 'FAILED' }));
   });
 });

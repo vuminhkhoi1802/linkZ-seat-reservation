@@ -1,39 +1,41 @@
 import { Injectable } from '@nestjs/common';
-import { ISeatRepository } from '../../domain/repositories';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, EntityManager } from 'typeorm';
+import { ISeatRepository, TransactionalManager } from '../../domain/repositories';
 import { SeatView } from '../../domain/types';
-import { DatabaseService } from '../db/database.service';
-import { PoolClient } from 'pg';
+import { Seat } from '../db/entities/seat.entity';
 
 @Injectable()
 export class PostgresSeatRepository implements ISeatRepository {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    @InjectRepository(Seat)
+    private readonly seatRepo: Repository<Seat>,
+  ) {}
 
   async findAll(): Promise<SeatView[]> {
-    const result = await this.db.query<{ id: string; label: string; is_reserved: boolean }>(
-      `
-        SELECT s.id,
-               s.label,
-               EXISTS (
-                 SELECT 1 FROM reservations r
-                 WHERE r.seat_id = s.id AND r.status = 'CONFIRMED'
-               ) AS is_reserved
-        FROM seats s
-        ORDER BY s.label ASC
-      `,
-    );
-    return result.rows.map((row) => ({
-      id: row.id,
-      label: row.label,
-      isReserved: row.is_reserved,
+    const seats = await this.seatRepo.find({
+      relations: { reservations: true },
+      order: { label: 'ASC' },
+    });
+
+    return seats.map((seat) => ({
+      id: seat.id,
+      label: seat.label,
+      isReserved: seat.reservations?.some((r) => r.status === 'CONFIRMED') ?? false,
     }));
   }
 
-  async findByIdForUpdate(client: PoolClient, id: string): Promise<void> {
-    await client.query('SELECT id FROM seats WHERE id = $1 FOR UPDATE', [id]);
+  async findByIdForUpdate(manager: TransactionalManager, id: string): Promise<void> {
+    const entityManager: EntityManager = manager || this.seatRepo.manager;
+    await entityManager
+      .createQueryBuilder(Seat, 'seat')
+      .setLock('pessimistic_write')
+      .where('seat.id = :id', { id })
+      .getOne();
   }
 
   async existsById(id: string): Promise<boolean> {
-    const result = await this.db.query('SELECT 1 FROM seats WHERE id = $1', [id]);
-    return (result.rowCount ?? 0) > 0;
+    const count = await this.seatRepo.count({ where: { id } });
+    return count > 0;
   }
 }

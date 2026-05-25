@@ -13,6 +13,7 @@
     "@nestjs/core": "^11.1.24",
     "@nestjs/platform-express": "^11.1.24",
     "@nestjs/throttler": "^6.4.0",
+    "@nestjs/typeorm": "^11.0.1",
     "argon2": "^0.41.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
@@ -21,6 +22,7 @@
     "pg": "^8.13.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "typeorm": "^1.0.0",
     "uuid": "^11.0.3"
   },
   "devDependencies": {
