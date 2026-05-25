@@ -163,6 +163,20 @@ flowchart LR
   Payment --> DB
 ```
 
+How the diagram maps to this codebase:
+
+| Diagram block | Code location | What it does |
+| --- | --- | --- |
+| `Browser` | User's browser running `frontend/src/main.tsx` | Renders login/register, seat selection, payment simulation, and the reserved seats list. |
+| `Nginx / React frontend` | `frontend/Dockerfile`, `frontend/nginx.conf`, `frontend/src/main.tsx` | Builds the React app, serves static assets, and proxies `/api/*` requests to the backend container. |
+| `NestJS backend` | `backend/src/main.ts`, `backend/src/app.module.ts` | Boots the Nest app, configures validation, cookies, CORS, security headers, throttling, controllers, and services. |
+| `Auth/session module` | `AuthController`, `LocalAuthService`, `SessionService`, `AuthGuard`, `CurrentUser` | Handles register/login/logout, creates 90-day DB-backed sessions, reads the session cookie, and attaches the authenticated user to protected requests. |
+| `Reservation use cases` | `ReservationService.completePaymentAndReserve`, `ReservationService.listMyReservations` | Owns the critical reservation transaction, idempotent payment completion, conflict handling, and the user's reserved seats list. |
+| `Mock payment use cases` | `PaymentsController`, `PaymentService.createPaymentAttempt` | Creates a mock `PENDING` payment attempt before reservation confirmation. |
+| `PostgreSQL` | `DatabaseService.migrateAndSeed`, SQL tables/indexes in `backend/src/infrastructure/db/database.service.ts` | Stores users, identities, sessions, seats, payments, and reservations; enforces the unique confirmed reservation per seat. |
+
+The local deployment is intentionally simple: one frontend container, one backend container, and one PostgreSQL container. The frontend does not talk to PostgreSQL directly. All reservation and payment decisions go through the backend so the browser cannot bypass availability or ownership checks.
+
 ### Backend Boundary Design
 
 ```mermaid
@@ -175,6 +189,21 @@ flowchart TB
   Infra --> Postgres[(PostgreSQL)]
   Infra --> Argon2[Argon2 password hashing]
 ```
+
+How the boundary diagram maps to this codebase:
+
+| Boundary block | Code location | Representative classes/functions |
+| --- | --- | --- |
+| `Controllers and DTOs` | `backend/src/interfaces/controllers`, `backend/src/interfaces/dto` | `AuthController.register`, `PaymentsController.complete`, `ReservationsController.me`, `RegisterDto`, `CreatePaymentDto`. |
+| `Auth guards` | `backend/src/interfaces/guards/auth.guard.ts`, `backend/src/interfaces/decorators/current-user.decorator.ts` | `AuthGuard.canActivate` validates the session cookie; `CurrentUser` extracts the authenticated `AuthPrincipal`. |
+| `Application services` | `backend/src/application` | `LocalAuthService.register/login`, `SeatService.listSeats`, `PaymentService.createPaymentAttempt`, `ReservationService.completePaymentAndReserve/listMyReservations`. |
+| `Domain types and rules` | `backend/src/domain/types.ts` | `ReservationStatus`, `PaymentStatus`, `AuthPrincipal`, `SeatView`, `ReservationView`. |
+| `Repository/provider contracts` | Current service method boundaries in `backend/src/application` | The app currently uses direct injected infrastructure services, but controllers depend on application methods rather than SQL. These method boundaries are the extraction point for explicit repository interfaces if persistence grows. |
+| `Infrastructure adapters` | `backend/src/infrastructure` | `DatabaseService.query/transaction/migrateAndSeed`, `SessionService.createSession/getPrincipal/deleteSession`, `PasswordHasher.hash/verify`. |
+| `PostgreSQL` | SQL inside `DatabaseService.migrateAndSeed` and query calls from application services | Provides transactions, row locks, foreign keys, and the partial unique index for one confirmed reservation per seat. |
+| `Argon2 password hashing` | `backend/src/infrastructure/security/password-hasher.ts` | `PasswordHasher.hash` and `PasswordHasher.verify` wrap Argon2 so password hashing does not leak into controllers or reservation logic. |
+
+The main rule is dependency direction: HTTP controllers call application services; application services coordinate domain decisions and infrastructure; infrastructure does not call controllers. That is why a future Auth0 adapter, Stripe adapter, Redis rate limiter, or dedicated repository layer can be added without rewriting seat reservation workflows.
 
 This keeps future provider changes contained:
 
