@@ -1,0 +1,174 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f5f7f8;
+  color: #1f2933;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  border-radius: 6px;
+  background: #1f6f8b;
+  color: white;
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 42px;
+  padding: 0 16px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+input {
+  border: 1px solid #cad4dc;
+  border-radius: 6px;
+  min-height: 42px;
+  padding: 8px 10px;
+}
+
+.shell {
+  margin: 0 auto;
+  max-width: 980px;
+  padding: 40px 20px;
+}
+
+.header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.eyebrow {
+  color: #52616b;
+  font-size: 14px;
+  margin: 0 0 6px;
+}
+
+h1,
+h2 {
+  letter-spacing: 0;
+  margin: 0;
+}
+
+h1 {
+  font-size: 36px;
+}
+
+h2 {
+  font-size: 20px;
+  margin-bottom: 18px;
+}
+
+.panel {
+  background: white;
+  border: 1px solid #d9e2e8;
+  border-radius: 8px;
+  padding: 22px;
+}
+
+.auth {
+  display: grid;
+  gap: 14px;
+  max-width: 420px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.tabs {
+  background: #e7edf1;
+  border-radius: 6px;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+}
+
+.tabs button {
+  background: transparent;
+  color: #324552;
+}
+
+.tabs .active {
+  background: white;
+}
+
+.grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 2fr 1fr;
+}
+
+.seats {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  margin-bottom: 20px;
+}
+
+.seat {
+  align-items: flex-start;
+  background: #edf4f7;
+  border: 2px solid transparent;
+  color: #1f2933;
+  display: grid;
+  gap: 8px;
+  min-height: 110px;
+  padding: 16px;
+  text-align: left;
+}
+
+.seat.selected {
+  border-color: #1f6f8b;
+  background: #dff0f5;
+}
+
+.seat small,
+.confirmation small {
+  color: #52616b;
+}
+
+.secondary {
+  background: #3e4c59;
+}
+
+.confirmation {
+  display: grid;
+  gap: 8px;
+}
+
+.message {
+  background: #fff8db;
+  border: 1px solid #f0d879;
+  border-radius: 6px;
+  margin-top: 18px;
+  padding: 12px 14px;
+}
+
+@media (max-width: 760px) {
+  .header,
+  .grid {
+    display: grid;
+  }
+
+  .grid,
+  .seats {
+    grid-template-columns: 1fr;
+  }
+}
