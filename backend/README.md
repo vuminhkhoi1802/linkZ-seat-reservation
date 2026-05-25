@@ -18,6 +18,11 @@ We utilized NestJS's dependency injection to map interfaces to implementations i
 ### 3. Enhanced Testability
 By mocking repository interfaces instead of raw `DatabaseService.query` chains, tests are now more readable and less brittle.
 
+### 4. Interactive API Documentation
+Integrated Swagger (OpenAPI 3.1) to provide automated, interactive documentation of the API endpoints, DTOs, and authentication mechanisms.
+- **URL:** `http://localhost:3000/api/docs`
+- **Benefits:** Standardized documentation, easier frontend-backend integration, and an interactive playground for developers.
+
 ## Implementation Details
 - **Repositories:** `PostgresSeatRepository`, `PostgresPaymentRepository`, `PostgresReservationRepository`, `PostgresUserRepository`.
 - **Services:** Refactored to inject repositories via `@Inject('IRepositoryName')`.

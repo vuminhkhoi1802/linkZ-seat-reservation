@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { LocalAuthService } from '../../application/local-auth.service';
@@ -8,6 +9,7 @@ import { LoginDto, RegisterDto } from '../dto/auth.dto';
 import { AuthGuard } from '../guards/auth.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
 
+@ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -16,6 +18,9 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @ApiOperation({ summary: 'Register a new user' })
+  @ApiResponse({ status: 201, description: 'User created and session cookie set.' })
+  @ApiResponse({ status: 409, description: 'Email already exists.' })
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async register(@Body() body: RegisterDto, @Res({ passthrough: true }) response: Response) {
     const result = await this.auth.register(body.email, body.password, body.displayName);
@@ -24,6 +29,9 @@ export class AuthController {
   }
 
   @Post('login')
+  @ApiOperation({ summary: 'Log in with email and password' })
+  @ApiResponse({ status: 200, description: 'Login successful and session cookie set.' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials.' })
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(200)
   async login(@Body() body: LoginDto, @Res({ passthrough: true }) response: Response) {
@@ -34,6 +42,9 @@ export class AuthController {
 
   @Post('logout')
   @UseGuards(AuthGuard)
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Log out current session' })
+  @ApiResponse({ status: 204, description: 'Logout successful and cookie cleared.' })
   @HttpCode(204)
   async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     await this.sessions.deleteSession(request.cookies?.[this.sessions.cookieName]);
@@ -42,6 +53,10 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(AuthGuard)
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'Get current authenticated user profile' })
+  @ApiResponse({ status: 200, description: 'Return user profile.' })
+  @ApiResponse({ status: 401, description: 'Not authenticated.' })
   async me(@CurrentUser() principal: AuthPrincipal) {
     const user = await this.auth.me(principal.userId);
     return { user: user ? this.toUserResponse(user) : null };

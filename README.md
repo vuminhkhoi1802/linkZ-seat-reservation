@@ -73,6 +73,7 @@ Services started by Compose:
 | --- | --- | --- |
 | `frontend` | Nginx serving the React app | `http://localhost:8080` |
 | `backend` | NestJS API | `http://localhost:3000/api` |
+| `backend docs` | Swagger/OpenAPI | `http://localhost:3000/api/docs` |
 | `postgres` | PostgreSQL system of record | internal Compose network only |
 
 PostgreSQL is intentionally not published to the host by default. The backend reaches it through the Compose network. This avoids conflicts with any existing local PostgreSQL on port `5432`.
@@ -750,6 +751,7 @@ They should not replace PostgreSQL for reservation writes without redesigning co
 
 ### Production Hardening Status
 
+- [x] **API Documentation:** Interactive Swagger/OpenAPI 3.1 documentation enabled.
 - [x] **Repository Pattern:** Logic decoupled from persistence via domain interfaces.
 - [x] **ORM Integration:** TypeORM migration completed for secure, type-safe data access.
 - [x] **Security Testing:** 100% coverage for security services.
