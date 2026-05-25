@@ -12,6 +12,10 @@ import { SeatService } from './application/seat.service';
 import { PaymentService } from './application/payment.service';
 import { ReservationService } from './application/reservation.service';
 import { AuthGuard } from './interfaces/guards/auth.guard';
+import { PostgresSeatRepository } from './infrastructure/repositories/postgres-seat.repository';
+import { PostgresPaymentRepository } from './infrastructure/repositories/postgres-payment.repository';
+import { PostgresReservationRepository } from './infrastructure/repositories/postgres-reservation.repository';
+import { PostgresUserRepository } from './infrastructure/repositories/postgres-user.repository';
 
 @Module({
   imports: [
@@ -32,6 +36,22 @@ import { AuthGuard } from './interfaces/guards/auth.guard';
     PaymentService,
     ReservationService,
     AuthGuard,
+    {
+      provide: 'ISeatRepository',
+      useClass: PostgresSeatRepository,
+    },
+    {
+      provide: 'IPaymentRepository',
+      useClass: PostgresPaymentRepository,
+    },
+    {
+      provide: 'IReservationRepository',
+      useClass: PostgresReservationRepository,
+    },
+    {
+      provide: 'IUserRepository',
+      useClass: PostgresUserRepository,
+    },
   ],
 })
 export class AppModule {}
