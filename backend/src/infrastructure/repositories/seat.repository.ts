@@ -6,7 +6,7 @@ import { SeatView } from '../../domain/types';
 import { Seat } from '../db/entities/seat.entity';
 
 @Injectable()
-export class PostgresSeatRepository implements ISeatRepository {
+export class TypeOrmSeatRepository implements ISeatRepository {
   constructor(
     @InjectRepository(Seat)
     private readonly seatRepo: Repository<Seat>,

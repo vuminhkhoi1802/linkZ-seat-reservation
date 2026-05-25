@@ -7,7 +7,7 @@ import { AuthIdentity } from '../db/entities/auth-identity.entity';
 import { LocalCredential } from '../db/entities/local-credential.entity';
 
 @Injectable()
-export class PostgresUserRepository implements IUserRepository {
+export class TypeOrmUserRepository implements IUserRepository {
   constructor(
     private readonly dataSource: DataSource,
     @InjectRepository(User)

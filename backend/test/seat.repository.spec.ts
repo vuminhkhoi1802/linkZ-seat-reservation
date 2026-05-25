@@ -1,7 +1,7 @@
-import { PostgresSeatRepository } from '../src/infrastructure/repositories/postgres-seat.repository';
+import { TypeOrmSeatRepository } from '../src/infrastructure/repositories/seat.repository';
 
-describe('PostgresSeatRepository', () => {
-  let repo: PostgresSeatRepository;
+describe('TypeOrmSeatRepository', () => {
+  let repo: TypeOrmSeatRepository;
   let seatRepo: any;
 
   beforeEach(() => {
@@ -10,7 +10,7 @@ describe('PostgresSeatRepository', () => {
       count: jest.fn(),
       manager: {},
     };
-    repo = new PostgresSeatRepository(seatRepo);
+    repo = new TypeOrmSeatRepository(seatRepo);
   });
 
   it('findAll() maps rows to SeatView', async () => {

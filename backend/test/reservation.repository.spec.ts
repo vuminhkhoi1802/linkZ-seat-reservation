@@ -1,7 +1,7 @@
-import { PostgresReservationRepository } from '../src/infrastructure/repositories/postgres-reservation.repository';
+import { TypeOrmReservationRepository } from '../src/infrastructure/repositories/reservation.repository';
 
-describe('PostgresReservationRepository', () => {
-  let repo: PostgresReservationRepository;
+describe('TypeOrmReservationRepository', () => {
+  let repo: TypeOrmReservationRepository;
   let reservationRepo: any;
 
   beforeEach(() => {
@@ -14,7 +14,7 @@ describe('PostgresReservationRepository', () => {
         save: jest.fn(),
       },
     };
-    repo = new PostgresReservationRepository(reservationRepo);
+    repo = new TypeOrmReservationRepository(reservationRepo);
   });
 
   it('findByPaymentAttemptId() maps row to ReservationView', async () => {

@@ -13,10 +13,10 @@ import { SeatService } from './application/seat.service';
 import { PaymentService } from './application/payment.service';
 import { ReservationService } from './application/reservation.service';
 import { AuthGuard } from './interfaces/guards/auth.guard';
-import { PostgresSeatRepository } from './infrastructure/repositories/postgres-seat.repository';
-import { PostgresPaymentRepository } from './infrastructure/repositories/postgres-payment.repository';
-import { PostgresReservationRepository } from './infrastructure/repositories/postgres-reservation.repository';
-import { PostgresUserRepository } from './infrastructure/repositories/postgres-user.repository';
+import { TypeOrmSeatRepository } from './infrastructure/repositories/seat.repository';
+import { TypeOrmPaymentRepository } from './infrastructure/repositories/payment.repository';
+import { TypeOrmReservationRepository } from './infrastructure/repositories/reservation.repository';
+import { TypeOrmUserRepository } from './infrastructure/repositories/user.repository';
 import { User } from './infrastructure/db/entities/user.entity';
 import { AuthIdentity } from './infrastructure/db/entities/auth-identity.entity';
 import { LocalCredential } from './infrastructure/db/entities/local-credential.entity';
@@ -61,19 +61,19 @@ import { Reservation } from './infrastructure/db/entities/reservation.entity';
     AuthGuard,
     {
       provide: 'ISeatRepository',
-      useClass: PostgresSeatRepository,
+      useClass: TypeOrmSeatRepository,
     },
     {
       provide: 'IPaymentRepository',
-      useClass: PostgresPaymentRepository,
+      useClass: TypeOrmPaymentRepository,
     },
     {
       provide: 'IReservationRepository',
-      useClass: PostgresReservationRepository,
+      useClass: TypeOrmReservationRepository,
     },
     {
       provide: 'IUserRepository',
-      useClass: PostgresUserRepository,
+      useClass: TypeOrmUserRepository,
     },
   ],
 })

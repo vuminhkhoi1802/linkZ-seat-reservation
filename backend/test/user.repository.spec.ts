@@ -1,7 +1,7 @@
-import { PostgresUserRepository } from '../src/infrastructure/repositories/postgres-user.repository';
+import { TypeOrmUserRepository } from '../src/infrastructure/repositories/user.repository';
 
-describe('PostgresUserRepository', () => {
-  let repo: PostgresUserRepository;
+describe('TypeOrmUserRepository', () => {
+  let repo: TypeOrmUserRepository;
   let userRepo: any;
   let dataSource: any;
 
@@ -12,7 +12,7 @@ describe('PostgresUserRepository', () => {
     dataSource = {
       transaction: jest.fn(),
     };
-    repo = new PostgresUserRepository(dataSource, userRepo);
+    repo = new TypeOrmUserRepository(dataSource, userRepo);
   });
 
   it('findByEmail() returns user or null', async () => {

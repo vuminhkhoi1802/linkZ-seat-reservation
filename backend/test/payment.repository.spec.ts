@@ -1,7 +1,7 @@
-import { PostgresPaymentRepository } from '../src/infrastructure/repositories/postgres-payment.repository';
+import { TypeOrmPaymentRepository } from '../src/infrastructure/repositories/payment.repository';
 
-describe('PostgresPaymentRepository', () => {
-  let repo: PostgresPaymentRepository;
+describe('TypeOrmPaymentRepository', () => {
+  let repo: TypeOrmPaymentRepository;
   let paymentRepo: any;
 
   beforeEach(() => {
@@ -18,7 +18,7 @@ describe('PostgresPaymentRepository', () => {
         update: jest.fn(),
       },
     };
-    repo = new PostgresPaymentRepository(paymentRepo);
+    repo = new TypeOrmPaymentRepository(paymentRepo);
   });
 
   it('create() returns PaymentAttemptView', async () => {

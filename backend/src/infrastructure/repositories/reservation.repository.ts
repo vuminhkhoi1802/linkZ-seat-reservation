@@ -7,7 +7,7 @@ import { Reservation } from '../db/entities/reservation.entity';
 import { Seat } from '../db/entities/seat.entity';
 
 @Injectable()
-export class PostgresReservationRepository implements IReservationRepository {
+export class TypeOrmReservationRepository implements IReservationRepository {
   constructor(
     @InjectRepository(Reservation)
     private readonly reservationRepo: Repository<Reservation>,

@@ -6,7 +6,7 @@ import { PaymentAttemptView } from '../../domain/types';
 import { PaymentAttempt } from '../db/entities/payment-attempt.entity';
 
 @Injectable()
-export class PostgresPaymentRepository implements IPaymentRepository {
+export class TypeOrmPaymentRepository implements IPaymentRepository {
   constructor(
     @InjectRepository(PaymentAttempt)
     private readonly paymentRepo: Repository<PaymentAttempt>,
