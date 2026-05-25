@@ -51,4 +51,24 @@ describe('PostgresReservationRepository', () => {
     expect(result.length).toBe(1);
     expect(result[0].id).toBe('r1');
   });
+
+  it('findByPaymentAttemptId() uses default manager if none provided', async () => {
+    reservationRepo.manager.findOne = jest.fn();
+    await repo.findByPaymentAttemptId(undefined, 'p1');
+    expect(reservationRepo.manager.findOne).toHaveBeenCalled();
+  });
+
+  it('isSeatConfirmed() uses default manager if none provided', async () => {
+    reservationRepo.manager.count = jest.fn();
+    await repo.isSeatConfirmed(undefined, 's1');
+    expect(reservationRepo.manager.count).toHaveBeenCalled();
+  });
+
+  it('createConfirmed() uses default manager if none provided', async () => {
+    reservationRepo.manager.findOne = jest.fn();
+    reservationRepo.manager.create = jest.fn().mockReturnValue({});
+    reservationRepo.manager.save = jest.fn().mockResolvedValue({ id: 'r1' });
+    await repo.createConfirmed(undefined, 'u1', 's1', 'p1');
+    expect(reservationRepo.manager.save).toHaveBeenCalled();
+  });
 });

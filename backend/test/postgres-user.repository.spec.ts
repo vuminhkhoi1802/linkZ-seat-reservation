@@ -33,6 +33,17 @@ describe('PostgresUserRepository', () => {
     expect(await repo.findByEmail('t@e.com')).toBeNull();
   });
 
+  it('findByEmail() handles user without local credentials', async () => {
+    userRepo.findOne.mockResolvedValueOnce({
+      id: '1',
+      email: 't@e.com',
+      displayName: 'T',
+      localCredential: null,
+    });
+    const result = await repo.findByEmail('t@e.com');
+    expect(result?.password_hash).toBe('');
+  });
+
   it('findById() returns user or null', async () => {
     userRepo.findOne.mockResolvedValueOnce({ id: '1', email: 't', displayName: 'D' });
     expect(await repo.findById('1')).toEqual({ id: '1', email: 't', display_name: 'D' });

@@ -14,7 +14,7 @@ export class PostgresReservationRepository implements IReservationRepository {
   ) {}
 
   async findByPaymentAttemptId(manager: TransactionalManager, paymentAttemptId: string): Promise<ReservationView | null> {
-    const entityManager: EntityManager = manager;
+    const entityManager: EntityManager = manager || this.reservationRepo.manager;
     const reservation = await entityManager.findOne(Reservation, {
       where: { paymentAttemptId },
       relations: { seat: true },

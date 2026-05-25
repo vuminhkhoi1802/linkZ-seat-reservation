@@ -52,4 +52,27 @@ describe('PostgresPaymentRepository', () => {
     await repo.markAsFailed(paymentRepo.manager, 'p1');
     expect(paymentRepo.manager.update).toHaveBeenCalledWith(expect.anything(), 'p1', expect.objectContaining({ status: 'FAILED' }));
   });
+
+  it('findByIdForUpdate() uses default manager if none provided', async () => {
+    const queryBuilder = {
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn(),
+    };
+    paymentRepo.manager.createQueryBuilder = jest.fn(() => queryBuilder);
+    await repo.findByIdForUpdate(undefined, 'p1');
+    expect(paymentRepo.manager.createQueryBuilder).toHaveBeenCalled();
+  });
+
+  it('markAsCompleted() uses default manager if none provided', async () => {
+    paymentRepo.manager.update = jest.fn();
+    await repo.markAsCompleted(undefined, 'p1');
+    expect(paymentRepo.manager.update).toHaveBeenCalled();
+  });
+
+  it('markAsFailed() uses default manager if none provided', async () => {
+    paymentRepo.manager.update = jest.fn();
+    await repo.markAsFailed(undefined, 'p1');
+    expect(paymentRepo.manager.update).toHaveBeenCalled();
+  });
 });
