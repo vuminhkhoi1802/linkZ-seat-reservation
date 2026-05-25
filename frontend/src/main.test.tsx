@@ -185,7 +185,7 @@ describe('App reservations panel', () => {
       return jsonResponse({});
     });
 
-    await userEvent.click(screen.getByRole('button', { name: 'Login', type: 'button' }));
+    await userEvent.click(screen.getAllByRole('button', { name: 'Login' })[0]);
     const authForm = screen.getByLabelText('Email').closest('form');
     const submitButton = authForm?.querySelector('button:not([type="button"])');
     await userEvent.click(submitButton as HTMLButtonElement);
