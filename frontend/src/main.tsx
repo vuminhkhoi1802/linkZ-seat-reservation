@@ -65,9 +65,11 @@ function App() {
     setMessage('');
     try {
       const path = mode === 'register' ? '/auth/register' : '/auth/login';
+      const authBody =
+        mode === 'register' ? { email, password, displayName } : { email, password };
       const result = await api<{ user: User }>(path, {
         method: 'POST',
-        body: JSON.stringify({ email, password, displayName }),
+        body: JSON.stringify(authBody),
       });
       setUser(result.user);
       setMessage(`Signed in as ${result.user.email}`);
