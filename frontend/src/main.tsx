@@ -11,19 +11,29 @@ import { ReservationList } from './components/ReservationList';
 export function App() {
   const { user, busy: authBusy, message, setMessage, refreshUser, login, register, logout } = useAuth();
   const { seats, refreshSeats } = useSeats();
-  const { reservations, busy: reservationBusy, refreshReservations, reserveSeat } = useReservations();
+  const {
+    reservations,
+    busy: reservationBusy,
+    refreshReservations,
+    reserveSeat,
+    clearReservations,
+  } = useReservations();
 
+  // Initial session check
   useEffect(() => {
-    refresh();
+    refreshUser();
   }, [refreshUser]);
 
-  async function refresh() {
-    const currentUser = await refreshUser();
-    await refreshSeats();
-    if (currentUser) {
-      await refreshReservations();
+  // React to user changes
+  useEffect(() => {
+    if (user) {
+      refreshSeats();
+      refreshReservations();
+    } else {
+      clearReservations();
+      refreshSeats(); // Seats are public, but good to refresh on logout too
     }
-  }
+  }, [user, refreshSeats, refreshReservations, clearReservations]);
 
   const handleReserve = async (seatId: string) => {
     try {

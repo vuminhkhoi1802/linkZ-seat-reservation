@@ -34,5 +34,9 @@ export function useReservations() {
     }
   };
 
-  return { reservations, busy, refreshReservations, reserveSeat, setReservations };
+  const clearReservations = useCallback(() => {
+    setReservations([]);
+  }, []);
+
+  return { reservations, busy, refreshReservations, reserveSeat, setReservations, clearReservations };
 }

@@ -12,6 +12,9 @@ const seats = [
 const user = { id: 'user-1', email: 'reviewer@example.com', displayName: 'Reviewer' };
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {
+  if (init.status === 204) {
+    return new Response(null, init);
+  }
   return new Response(JSON.stringify(body), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
@@ -134,12 +137,62 @@ describe('App reservations panel', () => {
 
     render(<App />);
 
-    const heading = await screen.findByRole('heading', { name: 'Your reserved seats' });
-    const panel = heading.closest('.panel');
+    const reservationHeading = await screen.findByRole('heading', { name: 'Your reserved seats' });
+    const panel = reservationHeading.closest('.panel');
 
     expect(panel).toBeInTheDocument();
-    expect(within(panel as HTMLElement).getByText('Seat B')).toBeInTheDocument();
-    expect(within(panel as HTMLElement).getByText('Seat A')).toBeInTheDocument();
+    expect(await within(panel as HTMLElement).findByText('Seat B')).toBeInTheDocument();
+    expect(await within(panel as HTMLElement).findByText('Seat A')).toBeInTheDocument();
     expect(within(panel as HTMLElement).getAllByText('CONFIRMED')).toHaveLength(2);
+  });
+
+  it('clears reservations from UI on sign out', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input);
+      if (path === '/api/seats') return jsonResponse(seats);
+      if (path === '/api/auth/me') return jsonResponse({ user });
+      if (path === '/api/auth/logout') return jsonResponse({}, { status: 204 });
+      if (path === '/api/reservations/me') {
+        return jsonResponse([
+          { id: 'r1', seatId: 's1', seatLabel: 'Seat A', status: 'CONFIRMED', confirmedAt: null },
+        ]);
+      }
+      throw new Error(`Unhandled request: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+
+    // Wait for authenticated view
+    const reservationHeading = await screen.findByText('Your reserved seats');
+    const reservationPanel = reservationHeading.closest('.panel')!;
+    expect(await within(reservationPanel as HTMLElement).findByText('Seat A')).toBeInTheDocument();
+
+    // Sign out
+    const signOutBtn = screen.getByRole('button', { name: 'Sign out' });
+    await userEvent.click(signOutBtn);
+
+    // Wait for auth panel
+    await screen.findByRole('button', { name: 'Create account' });
+
+    // Verify reservations are gone (implicitly by checking they aren't in the document anymore since the panel is hidden)
+    // But more importantly, if we log back in as someone else (who has no reservations)
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const path = String(input);
+      if (path === '/api/seats') return jsonResponse(seats);
+      if (path === '/api/auth/login') return jsonResponse({ user: { ...user, id: 'user-2' } });
+      if (path === '/api/reservations/me') return jsonResponse([]);
+      return jsonResponse({});
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Login', type: 'button' }));
+    const authForm = screen.getByLabelText('Email').closest('form');
+    const submitButton = authForm?.querySelector('button:not([type="button"])');
+    await userEvent.click(submitButton as HTMLButtonElement);
+
+    const newReservationHeading = await screen.findByText('Your reserved seats');
+    const newReservationPanel = newReservationHeading.closest('.panel')!;
+    expect(within(newReservationPanel as HTMLElement).queryByText('Seat A')).not.toBeInTheDocument();
+    expect(within(newReservationPanel as HTMLElement).getByText('No confirmed seats yet.')).toBeInTheDocument();
   });
 });

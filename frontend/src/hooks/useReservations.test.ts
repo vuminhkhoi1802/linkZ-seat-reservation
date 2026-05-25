@@ -66,4 +66,18 @@ describe('useReservations hook', () => {
 
     expect(result.current.reservations).toEqual([]);
   });
+
+  it('clears reservations', async () => {
+    const { result } = renderHook(() => useReservations());
+
+    await act(async () => {
+      result.current.setReservations([{ id: '1' } as any]);
+    });
+    expect(result.current.reservations.length).toBe(1);
+
+    await act(async () => {
+      result.current.clearReservations();
+    });
+    expect(result.current.reservations).toEqual([]);
+  });
 });

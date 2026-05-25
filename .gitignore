@@ -6,3 +6,4 @@ build/
 .env.*
 coverage/
 postgres_data/
+.idea
