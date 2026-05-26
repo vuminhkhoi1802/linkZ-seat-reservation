@@ -10,62 +10,48 @@ describe('useAuth hook', () => {
     vi.clearAllMocks();
   });
 
-  it('handles login success', async () => {
+  it('activates a token provider and refreshes the authenticated user', async () => {
     const user = { id: '1', email: 'test@example.com', displayName: 'Test' };
     vi.mocked(client.api).mockResolvedValue({ user });
 
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
-      await result.current.login('test@example.com', 'password');
+      await result.current.activateTokenProvider(async () => 'token-1');
     });
 
     expect(result.current.user).toEqual(user);
     expect(result.current.message).toBe('Signed in as test@example.com');
+    expect(client.setAccessTokenProvider).toHaveBeenCalled();
   });
 
-  it('handles login failure', async () => {
-    vi.mocked(client.api).mockRejectedValue(new Error('Invalid credentials'));
+  it('handles external authentication failure', async () => {
+    vi.mocked(client.api).mockRejectedValue(new Error('Invalid token'));
 
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
       try {
-        await result.current.login('test@example.com', 'wrong');
+        await result.current.activateTokenProvider(async () => 'bad-token');
       } catch (e) {}
     });
 
     expect(result.current.user).toBeNull();
-    expect(result.current.message).toBe('Invalid credentials');
+    expect(result.current.message).toBe('Invalid token');
   });
 
-  it('handles registration success', async () => {
+  it('signs in with the demo external identity', async () => {
     const user = { id: '1', email: 'test@example.com', displayName: 'Test' };
     vi.mocked(client.api).mockResolvedValue({ user });
 
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
-      await result.current.register('test@example.com', 'password', 'Test');
+      await result.current.signInDemo();
     });
 
     expect(result.current.user).toEqual(user);
     expect(result.current.message).toBe('Signed in as test@example.com');
-  });
-
-  it('handles registration failure', async () => {
-    vi.mocked(client.api).mockRejectedValue(new Error('Email exists'));
-
-    const { result } = renderHook(() => useAuth());
-
-    await act(async () => {
-      try {
-        await result.current.register('test@example.com', 'password', 'Test');
-      } catch (e) {}
-    });
-
-    expect(result.current.user).toBeNull();
-    expect(result.current.message).toBe('Email exists');
   });
 
   it('handles refreshUser success', async () => {
@@ -96,8 +82,6 @@ describe('useAuth hook', () => {
   });
 
   it('handles logout', async () => {
-    vi.mocked(client.api).mockResolvedValue(undefined);
-
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
@@ -106,5 +90,6 @@ describe('useAuth hook', () => {
 
     expect(result.current.user).toBeNull();
     expect(result.current.message).toBe('Signed out');
+    expect(client.setAccessTokenProvider).toHaveBeenCalledWith(null);
   });
 });

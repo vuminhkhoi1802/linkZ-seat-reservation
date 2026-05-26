@@ -10,6 +10,12 @@ export interface ISeatRepository {
 
 export interface IPaymentRepository {
   create(userId: string, seatId: string): Promise<PaymentAttemptView>;
+  findById(id: string): Promise<{
+    id: string;
+    user_id: string;
+    seat_id: string;
+    status: string;
+  } | null>;
   findByIdForUpdate(manager: TransactionalManager, id: string): Promise<{
     id: string;
     user_id: string;
@@ -28,11 +34,11 @@ export interface IReservationRepository {
 }
 
 export interface IUserRepository {
-  findByEmail(email: string): Promise<{ id: string; email: string; display_name: string; password_hash: string } | null>;
   findById(id: string): Promise<{ id: string; email: string; display_name: string } | null>;
-  createWithCredentials(
+  upsertExternalIdentity(
+    provider: string,
+    providerUserId: string,
     email: string,
-    displayName: string,
-    passwordHash: string,
+    displayName: string
   ): Promise<{ id: string; email: string; display_name: string }>;
 }

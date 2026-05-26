@@ -44,20 +44,8 @@ export class DatabaseService implements OnModuleDestroy {
         UNIQUE(provider, provider_user_id)
       );
 
-      CREATE TABLE IF NOT EXISTS local_credentials (
-        user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-        password_hash TEXT NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-      );
-
-      CREATE TABLE IF NOT EXISTS sessions (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        token_hash TEXT NOT NULL UNIQUE,
-        expires_at TIMESTAMPTZ NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-      );
+      DROP TABLE IF EXISTS local_credentials;
+      DROP TABLE IF EXISTS sessions;
 
       CREATE TABLE IF NOT EXISTS seats (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -72,6 +60,29 @@ export class DatabaseService implements OnModuleDestroy {
         status TEXT NOT NULL CHECK (status IN ('PENDING', 'COMPLETED', 'FAILED')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         completed_at TIMESTAMPTZ
+      );
+
+      CREATE TABLE IF NOT EXISTS payment_webhook_events (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        provider_event_id TEXT NOT NULL UNIQUE,
+        payment_attempt_id UUID NOT NULL REFERENCES payment_attempts(id) ON DELETE RESTRICT,
+        payload JSONB NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('RECEIVED', 'PROCESSED', 'FAILED')),
+        attempts INTEGER NOT NULL DEFAULT 0,
+        last_error TEXT,
+        next_retry_at TIMESTAMPTZ,
+        processed_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS payment_audit_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        payment_attempt_id UUID REFERENCES payment_attempts(id) ON DELETE SET NULL,
+        event_type TEXT NOT NULL,
+        source TEXT NOT NULL,
+        metadata JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
 
       CREATE TABLE IF NOT EXISTS reservations (

@@ -22,9 +22,13 @@ export function useReservations() {
         method: 'POST',
         body: JSON.stringify({ seatId }),
       });
-      const confirmed = await api<Reservation>(`/payments/${payment.id}/complete`, {
+      const result = await api<{ reservation?: Reservation }>(`/payments/${payment.id}/mock-provider-complete`, {
         method: 'POST',
       });
+      const confirmed = result.reservation;
+      if (!confirmed) {
+        throw new Error('Payment completed without a confirmed reservation');
+      }
       setReservations((current) => [confirmed, ...current.filter((item) => item.id !== confirmed.id)]);
       return confirmed;
     } catch (error) {

@@ -1,7 +1,8 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from './main';
+import { setAccessTokenProvider } from './api/client';
 
 const seats = [
   { id: 'seat-a', label: 'Seat A', isReserved: false },
@@ -22,79 +23,48 @@ function jsonResponse(body: unknown, init: ResponseInit = {}) {
   });
 }
 
-function requestBody(call: unknown[]) {
-  const options = call[1] as RequestInit;
-  return JSON.parse(options.body as string) as Record<string, unknown>;
-}
-
-describe('App authentication requests', () => {
-  let fetchMock: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const path = String(input);
-      if (path === '/api/seats') {
-        return jsonResponse(seats);
-      }
-      if (path === '/api/auth/me') {
-        return jsonResponse({ user: null }, { status: 401 });
-      }
-      if (path === '/api/auth/register' || path === '/api/auth/login') {
-        return jsonResponse({ user });
-      }
-      if (path === '/api/reservations/me') {
-        return jsonResponse([]);
-      }
-      throw new Error(`Unhandled request: ${path}`);
-    });
-    vi.stubGlobal('fetch', fetchMock);
-  });
-
+describe('App external authentication', () => {
   afterEach(() => {
+    setAccessTokenProvider(null);
     vi.unstubAllGlobals();
   });
 
-  it('sends displayName when registering', async () => {
+  it('does not render password fields and signs in with a bearer-token identity', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
+      const path = String(input);
+      if (path === '/api/seats') return jsonResponse(seats);
+      if (path === '/api/auth/me') {
+        const headers = (options?.headers ?? {}) as Record<string, string>;
+        if (!headers.Authorization) {
+          return jsonResponse({ user: null }, { status: 401 });
+        }
+        return jsonResponse({ user });
+      }
+      if (path === '/api/reservations/me') return jsonResponse([]);
+      throw new Error(`Unhandled request: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
     render(<App />);
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Create account' }));
+    expect(screen.queryByLabelText('Password')).not.toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('button', { name: 'Continue as reviewer' }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/auth/register', expect.any(Object));
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/auth/me',
+        expect.objectContaining({
+          headers: expect.objectContaining({ Authorization: expect.stringContaining('Bearer mock:') }),
+        }),
+      );
     });
-    const registerCall = fetchMock.mock.calls.find(([path]) => path === '/api/auth/register');
-
-    expect(registerCall).toBeDefined();
-    expect(requestBody(registerCall!)).toEqual({
-      email: 'reviewer@example.com',
-      password: 'password123',
-      displayName: 'Reviewer',
-    });
-  });
-
-  it('does not send displayName when logging in', async () => {
-    render(<App />);
-
-    await userEvent.click(await screen.findByRole('button', { name: 'Login' }));
-    const authForm = screen.getByLabelText('Email').closest('form');
-    const submitButton = authForm?.querySelector('button:not([type="button"])');
-    await userEvent.click(submitButton as HTMLButtonElement);
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/auth/login', expect.any(Object));
-    });
-    const loginCall = fetchMock.mock.calls.find(([path]) => path === '/api/auth/login');
-
-    expect(loginCall).toBeDefined();
-    expect(requestBody(loginCall!)).toEqual({
-      email: 'reviewer@example.com',
-      password: 'password123',
-    });
+    expect(await screen.findByText('Signed in as reviewer@example.com')).toBeInTheDocument();
   });
 });
 
 describe('App reservations panel', () => {
   afterEach(() => {
+    setAccessTokenProvider(null);
     vi.unstubAllGlobals();
   });
 
@@ -110,9 +80,7 @@ describe('App reservations panel', () => {
             { id: 'seat-c', label: 'Seat C', isReserved: false },
           ]);
         }
-        if (path === '/api/auth/me') {
-          return jsonResponse({ user });
-        }
+        if (path === '/api/auth/me') return jsonResponse({ user });
         if (path === '/api/reservations/me') {
           return jsonResponse([
             {
@@ -151,7 +119,6 @@ describe('App reservations panel', () => {
       const path = String(input);
       if (path === '/api/seats') return jsonResponse(seats);
       if (path === '/api/auth/me') return jsonResponse({ user });
-      if (path === '/api/auth/logout') return jsonResponse({}, { status: 204 });
       if (path === '/api/reservations/me') {
         return jsonResponse([
           { id: 'r1', seatId: 's1', seatLabel: 'Seat A', status: 'CONFIRMED', confirmedAt: null },
@@ -163,36 +130,13 @@ describe('App reservations panel', () => {
 
     render(<App />);
 
-    // Wait for authenticated view
     const reservationHeading = await screen.findByText('Your reserved seats');
     const reservationPanel = reservationHeading.closest('.panel')!;
     expect(await within(reservationPanel as HTMLElement).findByText('Seat A')).toBeInTheDocument();
 
-    // Sign out
-    const signOutBtn = screen.getByRole('button', { name: 'Sign out' });
-    await userEvent.click(signOutBtn);
+    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
 
-    // Wait for auth panel
-    await screen.findByRole('button', { name: 'Create account' });
-
-    // Verify reservations are gone (implicitly by checking they aren't in the document anymore since the panel is hidden)
-    // But more importantly, if we log back in as someone else (who has no reservations)
-    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
-      const path = String(input);
-      if (path === '/api/seats') return jsonResponse(seats);
-      if (path === '/api/auth/login') return jsonResponse({ user: { ...user, id: 'user-2' } });
-      if (path === '/api/reservations/me') return jsonResponse([]);
-      return jsonResponse({});
-    });
-
-    await userEvent.click(screen.getAllByRole('button', { name: 'Login' })[0]);
-    const authForm = screen.getByLabelText('Email').closest('form');
-    const submitButton = authForm?.querySelector('button:not([type="button"])');
-    await userEvent.click(submitButton as HTMLButtonElement);
-
-    const newReservationHeading = await screen.findByText('Your reserved seats');
-    const newReservationPanel = newReservationHeading.closest('.panel')!;
-    expect(within(newReservationPanel as HTMLElement).queryByText('Seat A')).not.toBeInTheDocument();
-    expect(within(newReservationPanel as HTMLElement).getByText('No confirmed seats yet.')).toBeInTheDocument();
+    await screen.findByRole('button', { name: 'Continue as reviewer' });
+    expect(screen.queryByText('Seat A')).not.toBeInTheDocument();
   });
 });

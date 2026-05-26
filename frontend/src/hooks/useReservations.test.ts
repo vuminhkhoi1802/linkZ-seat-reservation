@@ -41,7 +41,7 @@ describe('useReservations hook', () => {
     
     vi.mocked(client.api)
       .mockResolvedValueOnce(payment)
-      .mockResolvedValueOnce(reservation);
+      .mockResolvedValueOnce({ reservation });
 
     const { result } = renderHook(() => useReservations());
 

@@ -4,7 +4,6 @@ import { Repository, DataSource } from 'typeorm';
 import { IUserRepository } from '../../domain/repositories';
 import { User } from '../db/entities/user.entity';
 import { AuthIdentity } from '../db/entities/auth-identity.entity';
-import { LocalCredential } from '../db/entities/local-credential.entity';
 
 @Injectable()
 export class TypeOrmUserRepository implements IUserRepository {
@@ -13,22 +12,6 @@ export class TypeOrmUserRepository implements IUserRepository {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
   ) {}
-
-  async findByEmail(email: string): Promise<{ id: string; email: string; display_name: string; password_hash: string } | null> {
-    const user = await this.userRepo.findOne({
-      where: { email },
-      relations: { localCredential: true },
-    });
-
-    if (!user) return null;
-
-    return {
-      id: user.id,
-      email: user.email,
-      display_name: user.displayName,
-      password_hash: user.localCredential?.passwordHash ?? '',
-    };
-  }
 
   async findById(id: string): Promise<{ id: string; email: string; display_name: string } | null> {
     const user = await this.userRepo.findOne({ where: { id } });
@@ -41,37 +24,51 @@ export class TypeOrmUserRepository implements IUserRepository {
     };
   }
 
-  async createWithCredentials(
+  async upsertExternalIdentity(
+    provider: string,
+    providerUserId: string,
     email: string,
     displayName: string,
-    passwordHash: string,
   ): Promise<{ id: string; email: string; display_name: string }> {
     return this.dataSource.transaction(async (manager) => {
-      const user = manager.create(User, {
+      const identityRepo = manager.getRepository(AuthIdentity);
+      const existingIdentity = await identityRepo.findOne({
+        where: { provider, providerUserId },
+        relations: { user: true },
+      });
+
+      if (existingIdentity) {
+        existingIdentity.email = email;
+        existingIdentity.user.email = email;
+        existingIdentity.user.displayName = displayName;
+        const savedUser = await manager.save(User, existingIdentity.user);
+        await identityRepo.save(existingIdentity);
+        return this.toUserResponse(savedUser);
+      }
+
+      let user = await manager.findOne(User, { where: { email } });
+      if (!user) {
+        user = manager.create(User, { email, displayName });
+        user = await manager.save(User, user);
+      }
+
+      const identity = identityRepo.create({
+        userId: user.id,
+        provider,
+        providerUserId,
         email,
-        displayName,
       });
-      const savedUser = await manager.save(User, user);
+      await identityRepo.save(identity);
 
-      const identity = manager.create(AuthIdentity, {
-        userId: savedUser.id,
-        provider: 'local',
-        providerUserId: email,
-        email: email,
-      });
-      await manager.save(AuthIdentity, identity);
-
-      const credentials = manager.create(LocalCredential, {
-        userId: savedUser.id,
-        passwordHash,
-      });
-      await manager.save(LocalCredential, credentials);
-
-      return {
-        id: savedUser.id,
-        email: savedUser.email,
-        display_name: savedUser.displayName,
-      };
+      return this.toUserResponse(user);
     });
+  }
+
+  private toUserResponse(user: User): { id: string; email: string; display_name: string } {
+    return {
+      id: user.id,
+      email: user.email,
+      display_name: user.displayName,
+    };
   }
 }

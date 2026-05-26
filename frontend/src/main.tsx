@@ -1,15 +1,36 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
+import { ClerkProvider, SignedIn, UserButton, useAuth as useClerkAuth } from '@clerk/clerk-react';
 import './styles.css';
 import { useAuth } from './hooks/useAuth';
 import { useSeats } from './hooks/useSeats';
 import { useReservations } from './hooks/useReservations';
-import { AuthPanel } from './components/AuthPanel';
+import { ExternalAuthPanel } from './components/ExternalAuthPanel';
 import { SeatGrid } from './components/SeatGrid';
 import { ReservationList } from './components/ReservationList';
 
-export function App() {
-  const { user, busy: authBusy, message, setMessage, refreshUser, login, register, logout } = useAuth();
+const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
+
+interface AppContentProps {
+  clerkConfigured: boolean;
+  clerkAuth?: {
+    isSignedIn: boolean | undefined;
+    getToken: () => Promise<string | null>;
+    signOut: () => Promise<void>;
+  };
+}
+
+export function AppContent({ clerkConfigured, clerkAuth }: AppContentProps) {
+  const {
+    user,
+    busy: authBusy,
+    message,
+    setMessage,
+    refreshUser,
+    activateTokenProvider,
+    signInDemo,
+    logout,
+  } = useAuth();
   const { seats, refreshSeats } = useSeats();
   const {
     reservations,
@@ -19,10 +40,18 @@ export function App() {
     clearReservations,
   } = useReservations();
 
-  // Initial session check
   useEffect(() => {
-    refreshUser();
-  }, [refreshUser]);
+    if (!clerkConfigured) {
+      refreshUser();
+      return;
+    }
+
+    if (clerkAuth?.isSignedIn) {
+      activateTokenProvider(clerkAuth.getToken);
+    } else {
+      logout();
+    }
+  }, [activateTokenProvider, clerkAuth, clerkConfigured, logout, refreshUser]);
 
   // React to user changes
   useEffect(() => {
@@ -56,14 +85,29 @@ export function App() {
           <h1>Seat Reservation</h1>
         </div>
         {user && (
-          <button className="secondary" onClick={logout}>
-            Sign out
-          </button>
+          <div className="session-actions">
+            {clerkConfigured && (
+              <SignedIn>
+                <UserButton />
+              </SignedIn>
+            )}
+            <button
+              className="secondary"
+              onClick={() => {
+                if (clerkConfigured && clerkAuth) {
+                  clerkAuth.signOut();
+                }
+                logout();
+              }}
+            >
+              Sign out
+            </button>
+          </div>
         )}
       </section>
 
       {!user ? (
-        <AuthPanel onLogin={login} onRegister={register} busy={busy} />
+        <ExternalAuthPanel clerkConfigured={clerkConfigured} busy={busy} onDemoSignIn={signInDemo} />
       ) : (
         <section className="grid">
           <SeatGrid seats={seats} onReserve={handleReserve} busy={busy} />
@@ -74,6 +118,37 @@ export function App() {
       {message && <p className="message">{message}</p>}
     </main>
   );
+}
+
+function ClerkAwareApp() {
+  const clerkAuth = useClerkAuth();
+  const authAdapter = useMemo(
+    () => ({
+      isSignedIn: clerkAuth.isSignedIn,
+      getToken: clerkAuth.getToken,
+      signOut: clerkAuth.signOut,
+    }),
+    [clerkAuth.getToken, clerkAuth.isSignedIn, clerkAuth.signOut],
+  );
+
+  return (
+    <AppContent
+      clerkConfigured
+      clerkAuth={authAdapter}
+    />
+  );
+}
+
+export function App() {
+  if (clerkPublishableKey) {
+    return (
+      <ClerkProvider publishableKey={clerkPublishableKey}>
+        <ClerkAwareApp />
+      </ClerkProvider>
+    );
+  }
+
+  return <AppContent clerkConfigured={false} />;
 }
 
 const rootElement = document.getElementById('root');

@@ -15,35 +15,6 @@ describe('TypeOrmUserRepository', () => {
     repo = new TypeOrmUserRepository(dataSource, userRepo);
   });
 
-  it('findByEmail() returns user or null', async () => {
-    userRepo.findOne.mockResolvedValueOnce({
-      id: '1',
-      email: 't@e.com',
-      displayName: 'T',
-      localCredential: { passwordHash: 'h' },
-    });
-    expect(await repo.findByEmail('t@e.com')).toEqual({
-      id: '1',
-      email: 't@e.com',
-      display_name: 'T',
-      password_hash: 'h',
-    });
-
-    userRepo.findOne.mockResolvedValueOnce(null);
-    expect(await repo.findByEmail('t@e.com')).toBeNull();
-  });
-
-  it('findByEmail() handles user without local credentials', async () => {
-    userRepo.findOne.mockResolvedValueOnce({
-      id: '1',
-      email: 't@e.com',
-      displayName: 'T',
-      localCredential: null,
-    });
-    const result = await repo.findByEmail('t@e.com');
-    expect(result?.password_hash).toBe('');
-  });
-
   it('findById() returns user or null', async () => {
     userRepo.findOne.mockResolvedValueOnce({ id: '1', email: 't', displayName: 'D' });
     expect(await repo.findById('1')).toEqual({ id: '1', email: 't', display_name: 'D' });
@@ -52,16 +23,42 @@ describe('TypeOrmUserRepository', () => {
     expect(await repo.findById('1')).toBeNull();
   });
 
-  it('createWithCredentials() uses transaction', async () => {
+  it('upsertExternalIdentity() creates user and identity in a transaction', async () => {
     const userEntity = { id: '1', email: 't', displayName: 'D' };
+    const identityRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockReturnValue({}),
+      save: jest.fn(),
+    };
     const manager = {
+      getRepository: jest.fn().mockReturnValue(identityRepo),
+      findOne: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockReturnValue(userEntity),
       save: jest.fn().mockResolvedValue(userEntity),
     };
     dataSource.transaction.mockImplementation(async (work: any) => work(manager));
 
-    const result = await repo.createWithCredentials('t', 'D', 'hash');
+    const result = await repo.upsertExternalIdentity('clerk', 'clerk-user', 't', 'D');
     expect(result).toEqual({ id: '1', email: 't', display_name: 'D' });
-    expect(manager.save).toHaveBeenCalledTimes(3);
+    expect(identityRepo.save).toHaveBeenCalled();
+  });
+
+  it('upsertExternalIdentity() updates an existing identity user', async () => {
+    const existingUser = { id: '1', email: 'old@example.com', displayName: 'Old' };
+    const identity = { email: 'old@example.com', user: existingUser };
+    const identityRepo = {
+      findOne: jest.fn().mockResolvedValue(identity),
+      save: jest.fn(),
+    };
+    const manager = {
+      getRepository: jest.fn().mockReturnValue(identityRepo),
+      save: jest.fn().mockImplementation((_entity: any, value: any) => Promise.resolve(value)),
+    };
+    dataSource.transaction.mockImplementation(async (work: any) => work(manager));
+
+    const result = await repo.upsertExternalIdentity('clerk', 'clerk-user', 'new@example.com', 'New');
+
+    expect(result).toEqual({ id: '1', email: 'new@example.com', display_name: 'New' });
+    expect(identityRepo.save).toHaveBeenCalledWith(expect.objectContaining({ email: 'new@example.com' }));
   });
 });

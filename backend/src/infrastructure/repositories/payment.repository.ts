@@ -22,6 +22,23 @@ export class TypeOrmPaymentRepository implements IPaymentRepository {
     return { id: saved.id, seatId: saved.seatId, status: saved.status };
   }
 
+  async findById(id: string): Promise<{
+    id: string;
+    user_id: string;
+    seat_id: string;
+    status: string;
+  } | null> {
+    const attempt = await this.paymentRepo.findOne({ where: { id } });
+    if (!attempt) return null;
+
+    return {
+      id: attempt.id,
+      user_id: attempt.userId,
+      seat_id: attempt.seatId,
+      status: attempt.status,
+    };
+  }
+
   async findByIdForUpdate(manager: TransactionalManager, id: string): Promise<{
     id: string;
     user_id: string;

@@ -5,11 +5,8 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
-  OneToOne,
 } from 'typeorm';
 import { AuthIdentity } from './auth-identity.entity';
-import { LocalCredential } from './local-credential.entity';
-import { Session } from './session.entity';
 import { PaymentAttempt } from './payment-attempt.entity';
 import { Reservation } from './reservation.entity';
 
@@ -32,12 +29,6 @@ export class User {
 
   @OneToMany(() => AuthIdentity, (identity) => identity.user)
   identities: AuthIdentity[];
-
-  @OneToOne(() => LocalCredential, (credential) => credential.user)
-  localCredential: LocalCredential;
-
-  @OneToMany(() => Session, (session) => session.user)
-  sessions: Session[];
 
   @OneToMany(() => PaymentAttempt, (attempt) => attempt.user)
   paymentAttempts: PaymentAttempt[];

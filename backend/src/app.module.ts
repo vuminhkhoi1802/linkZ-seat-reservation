@@ -6,9 +6,7 @@ import { SeatsController } from './interfaces/controllers/seats.controller';
 import { PaymentsController } from './interfaces/controllers/payments.controller';
 import { ReservationsController } from './interfaces/controllers/reservations.controller';
 import { DatabaseService } from './infrastructure/db/database.service';
-import { PasswordHasher } from './infrastructure/security/password-hasher';
-import { SessionService } from './infrastructure/security/session.service';
-import { LocalAuthService } from './application/local-auth.service';
+import { ExternalAuthService } from './application/external-auth.service';
 import { SeatService } from './application/seat.service';
 import { PaymentService } from './application/payment.service';
 import { ReservationService } from './application/reservation.service';
@@ -19,11 +17,12 @@ import { TypeOrmReservationRepository } from './infrastructure/repositories/rese
 import { TypeOrmUserRepository } from './infrastructure/repositories/user.repository';
 import { User } from './infrastructure/db/entities/user.entity';
 import { AuthIdentity } from './infrastructure/db/entities/auth-identity.entity';
-import { LocalCredential } from './infrastructure/db/entities/local-credential.entity';
-import { Session } from './infrastructure/db/entities/session.entity';
 import { Seat } from './infrastructure/db/entities/seat.entity';
 import { PaymentAttempt } from './infrastructure/db/entities/payment-attempt.entity';
 import { Reservation } from './infrastructure/db/entities/reservation.entity';
+import { PaymentWebhookEvent } from './infrastructure/db/entities/payment-webhook-event.entity';
+import { PaymentAuditLog } from './infrastructure/db/entities/payment-audit-log.entity';
+import { PaymentWebhookService } from './application/payment-webhook.service';
 
 @Module({
   imports: [
@@ -42,21 +41,20 @@ import { Reservation } from './infrastructure/db/entities/reservation.entity';
     TypeOrmModule.forFeature([
       User,
       AuthIdentity,
-      LocalCredential,
-      Session,
       Seat,
       PaymentAttempt,
       Reservation,
+      PaymentWebhookEvent,
+      PaymentAuditLog,
     ]),
   ],
   controllers: [AuthController, SeatsController, PaymentsController, ReservationsController],
   providers: [
     DatabaseService,
-    PasswordHasher,
-    SessionService,
-    LocalAuthService,
+    ExternalAuthService,
     SeatService,
     PaymentService,
+    PaymentWebhookService,
     ReservationService,
     AuthGuard,
     {

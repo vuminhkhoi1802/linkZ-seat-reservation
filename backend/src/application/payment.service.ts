@@ -21,7 +21,15 @@ export class PaymentService {
     }
 
     try {
-      return await this.paymentRepo.create(userId, seatId);
+      const payment = await this.paymentRepo.create(userId, seatId);
+      await this.db.query(
+        `
+          INSERT INTO payment_audit_logs(payment_attempt_id, event_type, source, metadata)
+          VALUES ($1, 'payment.created', 'api', $2::jsonb)
+        `,
+        [payment.id, JSON.stringify({ userId, seatId })],
+      );
+      return payment;
     } catch (error) {
       if (error instanceof Error && error.message === 'Seat not found') {
         throw new NotFoundException('Seat not found');

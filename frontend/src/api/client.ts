@@ -1,7 +1,19 @@
+type AccessTokenProvider = () => Promise<string | null>;
+
+let accessTokenProvider: AccessTokenProvider | null = null;
+
+export function setAccessTokenProvider(provider: AccessTokenProvider | null) {
+  accessTokenProvider = provider;
+}
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = accessTokenProvider ? await accessTokenProvider() : null;
   const response = await fetch(`/api${path}`, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(options.headers ?? {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers ?? {}),
+    },
     ...options,
   });
   if (!response.ok) {

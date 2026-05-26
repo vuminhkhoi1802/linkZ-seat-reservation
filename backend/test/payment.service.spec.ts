@@ -8,7 +8,7 @@ describe('PaymentService', () => {
   let reservationRepo: any;
 
   beforeEach(() => {
-    db = {};
+    db = { query: jest.fn().mockResolvedValue({ rows: [] }) };
     paymentRepo = { create: jest.fn() };
     reservationRepo = { isSeatConfirmed: jest.fn() };
     service = new PaymentService(db, paymentRepo, reservationRepo);
@@ -20,6 +20,10 @@ describe('PaymentService', () => {
 
     const result = await service.createPaymentAttempt('u1', 's1');
     expect(result.id).toBe('p1');
+    expect(db.query).toHaveBeenCalledWith(expect.stringContaining('payment_audit_logs'), [
+      'p1',
+      JSON.stringify({ userId: 'u1', seatId: 's1' }),
+    ]);
   });
 
   it('throws BadRequestException if seat is reserved', async () => {

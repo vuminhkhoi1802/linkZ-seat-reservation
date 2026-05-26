@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { api } from '../api/client';
+import { api, setAccessTokenProvider } from '../api/client';
 import { User } from '../api/types';
 
 export function useAuth() {
@@ -18,49 +18,37 @@ export function useAuth() {
     }
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const activateTokenProvider = useCallback(async (provider: () => Promise<string | null>) => {
     setBusy(true);
     setMessage('');
     try {
-      const result = await api<{ user: User }>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      });
-      setUser(result.user);
-      setMessage(`Signed in as ${result.user.email}`);
-      return result.user;
+      setAccessTokenProvider(provider);
+      const result = await api<{ user: User | null }>('/auth/me');
+      const user = result.user;
+      setUser(user);
+      if (user) {
+        setMessage(`Signed in as ${user.email}`);
+      }
+      return user;
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Login failed');
+      setUser(null);
+      setMessage(error instanceof Error ? error.message : 'Authentication failed');
       throw error;
     } finally {
       setBusy(false);
     }
-  };
+  }, [refreshUser]);
 
-  const register = async (email: string, password: string, displayName: string) => {
-    setBusy(true);
-    setMessage('');
-    try {
-      const result = await api<{ user: User }>('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({ email, password, displayName }),
-      });
-      setUser(result.user);
-      setMessage(`Signed in as ${result.user.email}`);
-      return result.user;
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Registration failed');
-      throw error;
-    } finally {
-      setBusy(false);
-    }
-  };
+  const signInDemo = useCallback(
+    () => activateTokenProvider(async () => 'mock:reviewer:reviewer@example.com:Reviewer'),
+    [activateTokenProvider],
+  );
 
-  const logout = async () => {
-    await api<void>('/auth/logout', { method: 'POST' });
+  const logout = useCallback(async () => {
+    setAccessTokenProvider(null);
     setUser(null);
     setMessage('Signed out');
-  };
+  }, []);
 
-  return { user, busy, message, setMessage, refreshUser, login, register, logout };
+  return { user, busy, message, setMessage, refreshUser, activateTokenProvider, signInDemo, logout };
 }

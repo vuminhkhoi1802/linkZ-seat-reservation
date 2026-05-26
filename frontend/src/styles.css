@@ -148,6 +148,12 @@ label {
   background: #3e4c59;
 }
 
+.session-actions {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
 .reservation-list {
   display: grid;
   gap: 12px;
