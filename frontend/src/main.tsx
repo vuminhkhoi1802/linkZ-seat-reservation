@@ -31,7 +31,7 @@ export function AppContent({ clerkConfigured, clerkAuth }: AppContentProps) {
     signInDemo,
     logout,
   } = useAuth();
-  const { seats, refreshSeats } = useSeats();
+  const { seats, refreshSeats, clearSeats } = useSeats();
   const {
     reservations,
     busy: reservationBusy,
@@ -60,9 +60,9 @@ export function AppContent({ clerkConfigured, clerkAuth }: AppContentProps) {
       refreshReservations();
     } else {
       clearReservations();
-      refreshSeats(); // Seats are public, but good to refresh on logout too
+      clearSeats();
     }
-  }, [user, refreshSeats, refreshReservations, clearReservations]);
+  }, [user, clearReservations, clearSeats, refreshReservations, refreshSeats]);
 
   const handleReserve = async (seatId: string) => {
     try {

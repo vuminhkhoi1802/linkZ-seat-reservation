@@ -47,11 +47,16 @@ describe('useAuth hook', () => {
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
-      await result.current.signInDemo();
+      await result.current.signInDemo({
+        providerUserId: 'reviewer-a',
+        email: 'reviewer.a@example.com',
+        displayName: 'Reviewer A',
+      });
     });
 
     expect(result.current.user).toEqual(user);
     expect(result.current.message).toBe('Signed in as test@example.com');
+    expect(client.setAccessTokenProvider).toHaveBeenCalled();
   });
 
   it('handles refreshUser success', async () => {

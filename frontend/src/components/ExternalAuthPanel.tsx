@@ -1,10 +1,24 @@
 import { SignInButton, SignUpButton } from '@clerk/clerk-react';
+import { DemoIdentity } from '../hooks/useAuth';
 
 interface ExternalAuthPanelProps {
   clerkConfigured: boolean;
   busy: boolean;
-  onDemoSignIn: () => Promise<unknown>;
+  onDemoSignIn: (identity: DemoIdentity) => Promise<unknown>;
 }
+
+const demoIdentities: DemoIdentity[] = [
+  {
+    providerUserId: 'reviewer-a',
+    email: 'reviewer.a@example.com',
+    displayName: 'Reviewer A',
+  },
+  {
+    providerUserId: 'reviewer-b',
+    email: 'reviewer.b@example.com',
+    displayName: 'Reviewer B',
+  },
+];
 
 export function ExternalAuthPanel({ clerkConfigured, busy, onDemoSignIn }: ExternalAuthPanelProps) {
   if (clerkConfigured) {
@@ -24,9 +38,16 @@ export function ExternalAuthPanel({ clerkConfigured, busy, onDemoSignIn }: Exter
 
   return (
     <div className="panel auth">
-      <button type="button" disabled={busy} onClick={onDemoSignIn}>
-        {busy ? 'Working...' : 'Continue as reviewer'}
-      </button>
+      {demoIdentities.map((identity) => (
+        <button
+          key={identity.providerUserId}
+          type="button"
+          disabled={busy}
+          onClick={() => onDemoSignIn(identity)}
+        >
+          {busy ? 'Working...' : `Continue as ${identity.displayName}`}
+        </button>
+      ))}
     </div>
   );
 }

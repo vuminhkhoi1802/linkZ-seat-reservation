@@ -1,83 +1,98 @@
 # LinkZ Seat Reservation
 
-A professional seat reservation platform built with NestJS and React, demonstrating senior engineering judgment in architecture, security, and concurrency.
+Seat reservation demo built with React, NestJS, PostgreSQL, external-provider-ready authentication, and webhook-style payment completion.
 
 ```bash
 docker compose up --build
 ```
 
-Open the application at: `http://localhost:8080`
-Interactive API Docs: `http://localhost:3000/api/docs`
+Open `http://localhost:8080`. Swagger is available at `http://localhost:3000/api/docs`.
 
-## Table of Contents
+## Why Clerk Exists
 
-- [Core Features](#core-business-flow)
-- [Architecture & Design](#architecture)
-- [Security Model](#security-model)
-- [Testing & Quality](#testing-and-verification)
-- [Production Hardening](#production-hardening-status)
+Clerk is not there because the demo needs a pretty sign-in button. It represents the production identity boundary: passwords, recovery, MFA, social login, account protection, and mobile token issuance should be owned by an identity provider, not by this app.
+
+The backend is provider-neutral after token verification. `ExternalAuthService` verifies a bearer token, maps the external identity into `auth_identities`, and returns an internal `userId`. Reservation and payment logic never depends on Clerk-specific UI.
+
+## Local Multi-User Review
+
+The Docker path intentionally does not require a Clerk tenant. With `AUTH_PROVIDER=mock`, the frontend shows two local identities:
+
+- `Continue as Reviewer A`
+- `Continue as Reviewer B`
+
+Use two browsers, two profiles, or one normal window plus one incognito window. Sign in as different reviewers to test separate users, ownership checks, reserved-seat history, and concurrency behavior. These buttons still use the same `Authorization: Bearer mock:...` API shape that Clerk uses with real tokens.
+
+Mock auth is for local review only. Production should set Clerk keys and should not run with `AUTH_PROVIDER=mock`.
+Mock mode is strict: bearer values like `abc` are rejected. The token must match `mock:<providerUserId>:<email>:<displayName>`.
 
 ## Architecture
 
-### System Design
-The system follows a strictly decoupled **3-Layer Architecture** (Domain, Application, Infrastructure) to ensure maintainability and database-agnosticism.
-
 ```mermaid
-flowchart TD
-  Interfaces[Interfaces Layer: Controllers & DTOs] --> Application[Application Layer: Use Cases & Orchestration]
-  Application --> Domain[Domain Layer: Entities & Repository Contracts]
-  Infrastructure[Infrastructure Layer: TypeORM Repos & Adapters] --> Domain
+flowchart LR
+  Browser[Browser] --> Frontend[React + Nginx]
+  Frontend -->|Bearer token| API[NestJS API]
+  API --> Auth[ExternalAuthService]
+  API --> Payments[PaymentService + PaymentWebhookService]
+  API --> Reservations[ReservationService]
+  API --> DB[(PostgreSQL)]
 ```
 
-| Layer | Responsibility | Key Technologies |
+## Backend Boundary Design
+
+| Block | Code | Responsibility |
 | --- | --- | --- |
-| **Interfaces** | REST Controllers, API Documentation, Request Validation | NestJS, Swagger, Class-Validator |
-| **Application** | Business Workflows, Transaction Orchestration, External Auth | NestJS Services |
-| **Domain** | Core Entities, Data Access Contracts | TypeORM Entities, Interfaces |
-| **Infrastructure** | Database Persistence, Security Adapters, Webhook Processing | TypeORM, Argon2, PostgreSQL |
+| Controllers and DTOs | `backend/src/interfaces` | HTTP routes, validation, Swagger shape |
+| Auth boundary | `AuthGuard`, `ExternalAuthService` | Bearer extraction, provider verification, internal user mapping |
+| Application services | `backend/src/application` | Payment, webhook, seat, and reservation workflows |
+| Repository contracts | `backend/src/domain/repositories.ts` | Database-agnostic persistence contracts |
+| Infrastructure | `backend/src/infrastructure` | TypeORM entities, PostgreSQL repositories, schema setup |
 
-### Persistence Layer
-Migrated from raw SQL to **TypeORM** to provide:
-- **SQL Injection Mitigation:** Automatic parameterization of all queries.
-- **Database Agnosticism:** Repository naming and structure (e.g., `TypeOrmSeatRepository`) allow for easy migration to MySQL, Oracle, or SQL Server.
-- **Strong Consistency:** Pessimistic row locking (`FOR UPDATE`) for atomic reservation transactions.
+## Availability And Security
 
-## Security Model
+- PostgreSQL is the source of truth for reservations.
+- Reservation completion uses transactions, row locks, and uniqueness constraints to prevent double booking.
+- The app does not store local passwords.
+- Bearer auth supports web and future mobile clients.
+- Payment webhooks are stored before processing, audited, marked failed on transient errors, and retryable through a protected endpoint.
+- DTO validation rejects unexpected fields.
 
-### Authentication & Sessions
-- **Opaque Tokens:** Uses random random strings in `HttpOnly` cookies instead of client-accessible JWTs to mitigate XSS risks.
-- **Instant Revocation:** Database-backed sessions allow for immediate session invalidation globally.
-- **Session Isolation:** Robust state cleanup logic on both backend and frontend ensures no sensitive data leaks between user transitions.
+Endpoint auth policy:
 
-### Request Protection
-- **Rate Limiting:** NestJS Throttler protects sensitive endpoints (Login, Payment).
-- **Audit Logging:** Comprehensive logging of payment and reservation state changes.
-- **Input Validation:** Strict DTO schema enforcement.
+- Bearer token required: `GET /api/auth/me`, `GET /api/seats`, `GET /api/reservations/me`, `POST /api/payments/create`, `POST /api/payments/:id/complete`, `POST /api/payments/:id/mock-provider-complete`
+- Provider signature required: `POST /api/payments/webhook` (`x-mock-signature`)
+- Internal token required: `POST /api/payments/webhook/retry-due` (`x-internal-job-token`)
 
-## Testing and Verification
+## Payment Failure Handling
 
-### Code Coverage
-Achieved **>85% branch coverage** across the entire stack, verified with Jest (Backend) and Vitest (Frontend).
+Payment completion flows through `PaymentWebhookService`:
 
-| Module | Line Coverage | Branch Coverage |
-| --- | --- | --- |
-| **Backend Core** | 90.32% | **85.24%** |
-| **Security Services** | 100% | **100%** |
-| **Frontend Hooks** | 98.48% | **90%** |
+1. Store provider event in `payment_webhook_events`.
+2. Write receipt/process/failure rows to `payment_audit_logs`.
+3. Complete the reservation in a transaction.
+4. Mark the event `PROCESSED` on success.
+5. Mark the event `FAILED`, increment attempts, and set `next_retry_at` on failure.
+6. Retry with `POST /api/payments/webhook/retry-due` and `x-internal-job-token`.
 
-### Verified Scenarios
-- Concurrent race conditions for seat reservations (Pessimistic locking test).
-- Session logout and state isolation regression tests.
-- Full E2E flow from registration to confirmed reservation.
+## Commands
 
-## Production Hardening Status
+```bash
+cd backend && npm test && npm run build
+cd frontend && npm test && npm run build
+docker compose build
+```
 
-- [x] **3-Layer Architecture:** Decoupled business logic from persistence.
-- [x] **TypeORM Migration:** Secure, type-safe data access with SQLi mitigation.
-- [x] **Interactive API Docs:** Swagger/OpenAPI 3.1 enabled.
-- [x] **Robust Testing:** >85% coverage with critical path verification.
-- [x] **Security Hardening:** Argon2, Session Isolation, and HttpOnly Cookies.
+## Security Changelog
 
-## Final Notes
+- 2026-05-26: Replaced local password/session model with external-provider bearer auth boundary (`ExternalAuthService` + `AuthGuard`).
+- 2026-05-26: Enforced authenticated access on seat listing (`GET /api/seats`) to remove anonymous data access.
+- 2026-05-26: Hardened mock-mode auth to reject arbitrary bearer values; only `mock:<providerUserId>:<email>:<displayName>` is accepted.
+- 2026-05-26: Added explicit webhook trust boundaries: HMAC signature for provider callback and internal job token for retry endpoint.
+- 2026-05-26: Added/updated regression tests for auth guard behavior, malformed mock tokens, webhook processing, and retry failure handling.
 
-The primary engineering authority is **PostgreSQL**, providing the transactional consistency required for seat availability. The application is architected to be modular, secure, and ready for future scaling to microservices.
+## Tradeoffs
+
+- Clerk-ready auth reduces security burden, but real deployments need provider configuration.
+- Mock users keep review self-contained, but must be disabled outside local mode.
+- PostgreSQL favors correctness over early horizontal write scaling.
+- The retry endpoint is enough for this demo; production should use a scheduler or queue-backed worker.

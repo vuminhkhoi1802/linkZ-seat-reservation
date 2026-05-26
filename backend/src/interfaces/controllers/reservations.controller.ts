@@ -1,5 +1,5 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
-import { ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ReservationService } from '../../application/reservation.service';
 import { AuthPrincipal } from '../../domain/types';
 import { CurrentUser } from '../decorators/current-user.decorator';
@@ -8,7 +8,7 @@ import { AuthGuard } from '../guards/auth.guard';
 @ApiTags('Reservations')
 @Controller('reservations')
 @UseGuards(AuthGuard)
-@ApiCookieAuth()
+@ApiBearerAuth()
 export class ReservationsController {
   constructor(private readonly reservations: ReservationService) {}
 

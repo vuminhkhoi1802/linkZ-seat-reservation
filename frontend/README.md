@@ -1,43 +1,56 @@
-# Frontend: LinkZ Seat Reservation UI
+# Frontend Guide
 
-Modular React frontend architected for clarity, security, and developer experience.
+React/Vite UI for LinkZ seat reservations. It supports Clerk when configured and a local multi-user mock provider when running Docker review mode.
 
-## Tech Stack
-- **Framework:** React 18 (Vite)
-- **State Management:** Custom Hooks
-- **Testing:** Vitest & React Testing Library
-- **Architecture:** Modular Components
-
-## Architecture: Modular & Decoupled
-The frontend is structured to strictly separate concerns, following SRP (Single Responsibility Principle).
-
-### 1. Custom Logic Hooks (`src/hooks/`)
-Orchestrate API calls and manage internal state:
-- `useAuth`: Manages the user session and authentication lifecycle.
-- `useSeats`: Handles seat availability listing and polling.
-- `useReservations`: Manages the complex seat reservation workflow and user history.
-
-### 2. Functional UI Components (`src/components/`)
-Pure presentation components that receive state and callbacks via props:
-- `AuthPanel`: Dedicated UI for registration and login transitions.
-- `SeatGrid`: Interactive grid for seat selection.
-- `ReservationList`: Real-time display of confirmed reservations.
-
-### 3. API Client Layer (`src/api/`)
-Centralized `fetch` wrapper and domain-specific type definitions, ensuring consistent error handling and header management (e.g., credentials for session cookies).
-
-## Security & Reliability
-- **Session Isolation:** Implements reactive cleanup logic that wipes the local reservation state immediately upon logout, preventing cross-user data leakage.
-- **Async-Safe UI:** Components utilize `busy` states and optimistic updates where appropriate to ensure a smooth user experience.
-- **Type Safety:** TypeScript is used throughout to guarantee contract consistency between frontend and backend.
-
-## Testing & Quality
-Achieved **>85% branch coverage** across the frontend stack.
-- **Hook Testing:** Verified all state transition paths, including complex error handling in `catch` blocks.
-- **Integration Tests:** Comprehensive regression suite in `main.test.tsx` covering the full user journey from sign-up to reservation confirmation.
-- **Session Transitions:** Verified that logout correctly clears sensitive data and returns the user to a clean auth state.
+## Setup
 
 ```bash
-cd frontend
-npm test -- --coverage
+npm install
+npm test
+npm run build
 ```
+
+Run the full app:
+
+```bash
+docker compose up --build
+```
+
+## Local Multi-User Auth
+
+Without `VITE_CLERK_PUBLISHABLE_KEY`, `ExternalAuthPanel` shows:
+
+- `Continue as Reviewer A`
+- `Continue as Reviewer B`
+
+Use two browsers or one normal window plus one incognito window to sign in as different reviewers. Each button creates a different mock bearer token, so the backend creates separate internal users and reservation histories.
+
+## Clerk Mode
+
+Set `VITE_CLERK_PUBLISHABLE_KEY` to render Clerk sign-in/sign-up buttons. `main.tsx` passes Clerk's `getToken` into `useAuth`, and `api/client.ts` attaches the token as `Authorization: Bearer <token>`.
+
+## Frontend Boundary Design
+
+| Boundary | Code | Role |
+| --- | --- | --- |
+| Composition | `src/main.tsx` | Chooses Clerk or mock auth and wires app workflows |
+| API transport | `src/api/client.ts`, `src/api/types.ts` | Fetch wrapper, bearer-token attachment, typed response shapes |
+| Workflow state | `src/hooks/useAuth.ts`, `useSeats.ts`, `useReservations.ts` | Auth, seat loading, payment creation, webhook simulation, reservation refresh |
+| Presentation | `src/components/*` | Auth buttons, seat grid, reservation list |
+
+## Reservation Flow
+
+1. Pick Reviewer A, Reviewer B, or Clerk sign-in.
+2. Fetch current user, then fetch seats and reservations with bearer auth.
+3. Create a payment attempt for a selected seat.
+4. Complete through `/payments/:id/mock-provider-complete`.
+5. Refresh seats and the full reserved-seat list.
+
+## Verification
+
+```bash
+npm test
+npm run build
+```
+
+Tests cover multi-user mock auth buttons, bearer-token sign-in, reservation list rendering, sign-out cleanup, and reservation workflow API calls.

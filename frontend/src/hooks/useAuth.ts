@@ -2,6 +2,12 @@ import { useState, useCallback } from 'react';
 import { api, setAccessTokenProvider } from '../api/client';
 import { User } from '../api/types';
 
+export interface DemoIdentity {
+  providerUserId: string;
+  email: string;
+  displayName: string;
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [busy, setBusy] = useState(false);
@@ -40,7 +46,10 @@ export function useAuth() {
   }, [refreshUser]);
 
   const signInDemo = useCallback(
-    () => activateTokenProvider(async () => 'mock:reviewer:reviewer@example.com:Reviewer'),
+    (identity: DemoIdentity) =>
+      activateTokenProvider(
+        async () => `mock:${identity.providerUserId}:${identity.email}:${identity.displayName}`,
+      ),
     [activateTokenProvider],
   );
 

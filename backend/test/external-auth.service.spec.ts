@@ -48,4 +48,12 @@ describe('ExternalAuthService', () => {
       service.authenticateBearerToken('mock:clerk-user:reviewer@example.com:Reviewer'),
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
+
+  it('rejects malformed mock tokens in mock mode', async () => {
+    await expect(service.authenticateBearerToken('abc')).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.authenticateBearerToken('mock:user-1:bad-email:Name')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(userRepo.upsertExternalIdentity).not.toHaveBeenCalled();
+  });
 });

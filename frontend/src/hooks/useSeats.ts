@@ -18,5 +18,9 @@ export function useSeats() {
     }
   }, []);
 
-  return { seats, busy, refreshSeats };
+  const clearSeats = useCallback(() => {
+    setSeats([]);
+  }, []);
+
+  return { seats, busy, refreshSeats, clearSeats };
 }

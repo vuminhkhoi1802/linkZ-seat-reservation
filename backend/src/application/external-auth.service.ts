@@ -74,18 +74,32 @@ export class ExternalAuthService {
   }
 
   private verifyMockIdentity(token: string): ExternalIdentity {
-    const [, providerUserId = 'dev-user', email = 'reviewer@example.com', displayName = 'Reviewer'] =
-      token.split(':');
+    const parts = token.split(':');
+    if (parts.length !== 4 || parts[0] !== 'mock') {
+      throw new UnauthorizedException('Invalid mock token format');
+    }
+    const [, providerUserIdRaw, emailRaw, displayNameRaw] = parts;
+    const providerUserId = providerUserIdRaw.trim();
+    const email = emailRaw.trim().toLowerCase();
+    const displayName = displayNameRaw.trim();
+
+    if (!providerUserId || !displayName || !this.isValidEmail(email)) {
+      throw new UnauthorizedException('Invalid mock token claims');
+    }
 
     return {
       provider: 'clerk',
       providerUserId,
-      email: email.trim().toLowerCase(),
+      email,
       displayName,
     };
   }
 
   private stringClaim(value: unknown): string | null {
     return typeof value === 'string' && value.trim() ? value : null;
+  }
+
+  private isValidEmail(value: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
   }
 }

@@ -10,7 +10,7 @@ const seats = [
   { id: 'seat-c', label: 'Seat C', isReserved: false },
 ];
 
-const user = { id: 'user-1', email: 'reviewer@example.com', displayName: 'Reviewer' };
+const user = { id: 'user-1', email: 'reviewer.a@example.com', displayName: 'Reviewer A' };
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {
   if (init.status === 204) {
@@ -48,7 +48,7 @@ describe('App external authentication', () => {
     render(<App />);
 
     expect(screen.queryByLabelText('Password')).not.toBeInTheDocument();
-    await userEvent.click(await screen.findByRole('button', { name: 'Continue as reviewer' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Continue as Reviewer A' }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -58,7 +58,7 @@ describe('App external authentication', () => {
         }),
       );
     });
-    expect(await screen.findByText('Signed in as reviewer@example.com')).toBeInTheDocument();
+    expect(await screen.findByText('Signed in as reviewer.a@example.com')).toBeInTheDocument();
   });
 });
 
@@ -136,7 +136,7 @@ describe('App reservations panel', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
 
-    await screen.findByRole('button', { name: 'Continue as reviewer' });
+    await screen.findByRole('button', { name: 'Continue as Reviewer A' });
     expect(screen.queryByText('Seat A')).not.toBeInTheDocument();
   });
 });

@@ -16,13 +16,18 @@ describe('ExternalAuthPanel', () => {
     expect(screen.queryByLabelText('Password')).not.toBeInTheDocument();
   });
 
-  it('uses a passwordless demo identity when Clerk is not configured', () => {
+  it('lets reviewers choose between multiple passwordless demo identities', () => {
     const onDemoSignIn = vi.fn().mockResolvedValue(undefined);
     render(<ExternalAuthPanel clerkConfigured={false} busy={false} onDemoSignIn={onDemoSignIn} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Continue as reviewer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue as Reviewer B' }));
 
-    expect(onDemoSignIn).toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Continue as Reviewer A' })).toBeInTheDocument();
+    expect(onDemoSignIn).toHaveBeenCalledWith({
+      providerUserId: 'reviewer-b',
+      email: 'reviewer.b@example.com',
+      displayName: 'Reviewer B',
+    });
     expect(screen.queryByLabelText('Password')).not.toBeInTheDocument();
   });
 });
